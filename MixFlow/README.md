@@ -14,27 +14,31 @@ Trojan · Hysteria2 · SOCKS5 / HTTP　|　直连 / WARP 出站　|　内核终�
 
 ---
 
-## 🚀 一键安装
+## 🚀 安装
+
+推荐**全自动**一条龙 —— 全新机器直接跑这条，装好面板、建好节点、做完优化：
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh) oneclick
 ```
 
-自动识别 CPU 架构下载对应二进制，装到 `/opt/mixflow`，systemd 常驻 + 开机自启。
+一个 `Y` 确认，全程无需其它输入。跑完屏幕直接给出**面板地址 + 账号密码 + 两条节点链接**：
 
-## ⚡ 一键起飞（新机推荐）
+> **①** 内核终极优化（BBR + 缓冲区自适应）　**②** 建 `Trojan-[地区]` 节点（随机端口）　**③** 建 `Hysteria2-[地区]` 节点（随机端口）
 
-菜单里按 **`g`**，或直接：
+节点名自动带本机地区（如 `Trojan-HK`），先优化后建节点、优化只显示一行结果，清爽不刷屏。已装过则跳过安装，只做优化 + 建节点。
+
+<details>
+<summary>只想装好、自己配置？（不带 <code>oneclick</code>）</summary>
 
 ```bash
-bash <(curl -sL .../mixflow.sh) oneclick
+bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh)
 ```
 
-一个 `Y` 确认，只干三件事：
+打开管理菜单，交互式设置面板端口 / 隐藏入口 / 密码，不自动建节点。之后随时按 `g` 再一键建节点。
+</details>
 
-> **①** 内核终极优化（BBR + 缓冲区自适应）　**②** 建一个 `Trojan-[地区]` 节点（随机端口）　**③** 建一个 `Hysteria2-[地区]` 节点（随机端口）
-
-先优化、后建节点，屏幕最后停留的就是节点链接；优化过程只显示一行结果，清爽不刷屏。节点名自动带上本机地区，如 `Trojan-HK` / `Hysteria2-HK`，建好即启用。
+两种方式都会自动识别 CPU 架构（amd64 / arm64），装到 `/opt/mixflow`，systemd 常驻 + 开机自启。
 
 ## 🎛️ 面板
 
@@ -56,16 +60,6 @@ bash <(curl -sL .../mixflow.sh) oneclick
 | `mixflow panel --path /xxx` | 设隐藏入口（`--path off` 关闭） |
 | `mixflow panel --pass <密码>` | 改面板密码（忘密码也能改，不用进面板） |
 
-## 🛠️ 自行编译
-
-推荐 musl 静态版，一个二进制跑遍所有发行版：
-
-```bash
-cargo build --release --target x86_64-unknown-linux-musl   # amd64
-cross build --release --target aarch64-unknown-linux-musl   # arm64
-```
-
-产物按 `mixflow-linux-amd64` / `mixflow-linux-arm64` 命名，放进本目录即可。详见 [COMPILE.md](./COMPILE.md)。
 
 ---
 

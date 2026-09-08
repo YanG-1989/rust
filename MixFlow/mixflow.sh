@@ -6,21 +6,25 @@
 #  · 安装到 /opt/mixflow（不塞进 /root），systemd 常驻 + 开机自启
 #  · 内置：改面板端口 / 改隐藏入口路径 / 改面板密码 / 查看面板地址
 #
-#  远程一键：
-#      bash <(curl -fsSL https://你的地址/mixflow.sh)
-#
 
 set -uo pipefail
 
 VERSION="1.0.0"
 
 # ============================================================
-#  ★ 你的下载地址
+#  ★ 你的下载地址（已按你的实际布局填好）★
 # ============================================================
 
+#   MixFlow/mixflow-linux-amd64
+#   MixFlow/mixflow-linux-arm64
+# 注意大小写：raw 地址区分大小写
 MIXFLOW_URL="${MIXFLOW_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow-linux-{arch}}"
+
+# 脚本自身托管地址（远程一键自举用）。
 SELF_URL="${MIXFLOW_SELF_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh}"
 
+# —— 备选：如果哪天改用 GitHub Release 发布，把上面 MIXFLOW_URL 留空，再用下面这组 ——
+# 留空 MIXFLOW_URL 时才会用到 REPO/TAG/ASSET 去 Release 里找。
 MIXFLOW_REPO="${MIXFLOW_REPO:-YanG-1989/rust}"
 MIXFLOW_TAG="${MIXFLOW_TAG:-latest}"
 MIXFLOW_ASSET="${MIXFLOW_ASSET:-mixflow-linux-{arch}}"
@@ -33,6 +37,7 @@ CONFIG="$APP_DIR/config.toml"
 SERVICE_NAME="mixflow"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 MARK="# managed-by: mixflow.sh"
+# 可选：把二进制软链到 PATH，这样能全局 `mixflow panel --port ...`
 CLI_LINK="/usr/local/bin/mixflow"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'; BLU='\033[0;36m'
@@ -81,6 +86,7 @@ bootstrap_if_remote() {
 }
 bootstrap_if_remote "$@"
 
+# curl | bash 场景：stdin 是管道，read 会立刻 EOF，抢回终端
 if [ ! -t 0 ] && (exec < /dev/tty) 2>/dev/null; then
     exec < /dev/tty
 fi
@@ -137,15 +143,18 @@ download_url() {
     echo "${url//\{arch\}/$arch}"
 }
 
+# 下回来的得是个 ELF 可执行文件，不是 404 的 HTML 页
 looks_like_elf() {
     local magic; magic="$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')"
     [ "$magic" = "7f454c46" ]
 }
 
+# 随机暗门路径：/ + 10 位十六进制
 rand_path() {
     echo "/$(od -An -tx1 -N5 /dev/urandom 2>/dev/null | tr -d ' \n')"
 }
 
+# 读 config.toml 里 [panel] 段的某个 key（避开 nodes 里的同名字段）
 panel_get() { # key
     [ -f "$CONFIG" ] || return 1
     awk -v k="$1" '
@@ -158,6 +167,7 @@ panel_get() { # key
         }' "$CONFIG"
 }
 
+# 取本机公网 IP（多个源兜底），失败退到内网 IP
 public_ip() {
     local ip src
     for src in "https://api.ipify.org" "https://ipv4.icanhazip.com" "https://ip.sb"; do
@@ -169,6 +179,7 @@ public_ip() {
     echo "服务器IP"
 }
 
+# 探测本机所在地区的两位国家码（如 HK / JP / US），失败返回空
 detect_region() {
     local r
     r="$(curl -fsL --max-time 6 https://ipinfo.io/country 2>/dev/null | tr -d ' \r\n')"
@@ -181,22 +192,42 @@ detect_region() {
 # ============================================================
 #  一键生成节点 + 终极优化
 # ============================================================
+# 只干三件事：建 Trojan 节点、建 Hysteria2 节点（都随机端口）、套用终极代理优化。
 cmd_oneclick() {
     need_root "$@"
-    is_installed || { err "请先安装 mixflow（菜单里的「安装」）"; return 1; }
 
     echo -e "${BLU}=============================================${NC}"
-    echo -e "  ${GRN}一键生成节点 + 终极优化${NC}"
+    echo -e "  ${GRN}全自动部署：装好 mixflow + 建节点 + 优化${NC}"
     echo -e "${BLU}=============================================${NC}"
-    echo -e "  ${YEL}这个操作只做三件事：${NC}"
+    if is_installed; then
+        echo -e "  ${DIM}检测到已安装，只做优化 + 建节点${NC}"
+    else
+        echo -e "  ${YEL}检测到未安装，将自动完成全部步骤：${NC}"
+        echo -e "    ${GRN}0${NC} 下载二进制并装好面板（端口 12321 · 随机隐藏入口）"
+    fi
     echo -e "    ${GRN}①${NC} 内核终极优化（BBR + 缓冲区自适应，持久化）"
-    echo -e "    ${GRN}②${NC} 新建 1 个 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
-    echo -e "    ${GRN}③${NC} 新建 1 个 ${GRN}Hysteria2${NC} 节点（随机端口）"
+    echo -e "    ${GRN}②${NC} 新建 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
+    echo -e "    ${GRN}③${NC} 新建 ${GRN}Hysteria2${NC} 节点（随机端口）"
     echo -e "  节点名自动带本机地区后缀，例如 ${GRN}Trojan-HK${NC} / ${GRN}Hysteria2-HK${NC}"
-    echo -e "  ${DIM}不改端口、不动密码、不碰面板；节点建好即启用。${NC}"
     echo -e "${BLU}---------------------------------------------${NC}"
     local c; read -r -p "确认执行? [Y/n] " c
     [[ "${c:-Y}" =~ ^[Nn]$ ]] && { warn "已取消"; return 1; }
+
+    # 0) 没装就先全自动装好（非交互）
+    if ! is_installed; then
+        printf "  [0/3] 下载并安装 mixflow ... "
+        local ilog rc; ilog="$(mktemp /tmp/mixflow.inst.XXXXXX)"
+        MF_AUTO=1 cmd_install >"$ilog" 2>&1; rc=$?
+        unset MF_AUTO
+        if [ "$rc" = 0 ] && is_installed; then
+            echo -e "${GRN}完成${NC}"
+        else
+            echo -e "${RED}失败${NC}"; cat "$ilog"; rm -f "$ilog"
+            err "安装失败，请检查下载地址（MIXFLOW_URL）或网络后重试"
+            return 1
+        fi
+        rm -f "$ilog"
+    fi
 
     local region ip
     region="$(detect_region)"
@@ -204,6 +235,7 @@ cmd_oneclick() {
     echo -e "  地区 ${GRN}${region:-未知}${NC} · 公网IP ${GRN}${ip}${NC}"
     echo
 
+    # ① 先优化：详细报告收进日志，只留一行结果，避免刷屏盖掉后面的链接
     printf "  [1/3] 内核终极优化 ... "
     local olog; olog="$(mktemp /tmp/mixflow.opt.XXXXXX)"
     if "$BIN" optimize >"$olog" 2>&1; then
@@ -214,6 +246,7 @@ cmd_oneclick() {
     fi
     rm -f "$olog"
 
+    # ② ③ 建节点
     printf "  [2/3] 创建 Trojan + Hysteria2 节点 ... "
     local qlog; qlog="$(mktemp /tmp/mixflow.node.XXXXXX)"
     if ! "$BIN" quicknode --tag "$region" --host "$ip" -c "$CONFIG" >"$qlog" 2>&1; then
@@ -230,10 +263,21 @@ cmd_oneclick() {
         echo -e "${DIM}无 systemd${NC}"
     fi
 
+    # 收尾：面板信息 + 节点链接，干净地打印在最后
+    local port entry user pass
+    port="$(panel_get port)"; entry="$(panel_get entry)"
+    user="$(panel_get username)"; pass="$(panel_get password)"
+    echo -e "\n${BLU}================  面板信息  ================${NC}"
+    echo -e "  地址  ${GRN}http://${ip}:${port:-12321}${entry}${NC}"
+    [ -n "$entry" ] && echo -e "        ${DIM}（隐藏入口：不带 ${entry} 访问会是 404）${NC}"
+    echo -e "  账号  ${user:-admin}    密码  ${pass:-admin123}"
+
     echo -e "\n${BLU}================  节点链接  ================${NC}"
     cat "$qlog"; rm -f "$qlog"
     echo -e "${BLU}===========================================${NC}"
-    warn "记得放行端口：Trojan 走 ${YEL}TCP${NC}，Hysteria2 走 ${YEL}UDP${NC}（防火墙 / 云安全组）"
+    warn "记得放行端口：面板 ${YEL}TCP ${port:-12321}${NC}；Trojan 走 ${YEL}TCP${NC}、Hysteria2 走 ${YEL}UDP${NC}（防火墙 / 云安全组）"
+    [ "${pass:-admin123}" = "admin123" ] && \
+        warn "面板仍是默认密码，建议改掉：${DIM}mixflow panel --pass 新密码 -c $CONFIG${NC}"
 }
 write_service() {
     step "写入 $SERVICE_FILE"
@@ -241,6 +285,8 @@ write_service() {
 [Unit]
 ${MARK}
 Description=mixflow multi-protocol proxy + web panel
+# network-online 而不是 network：后者只保证网络栈起来了，不保证拿到地址，
+# 监听具体 IP 的服务会 bind 失败
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=300
@@ -248,11 +294,13 @@ StartLimitBurst=10
 
 [Service]
 Type=simple
+# WARP 隧道要 CAP_NET_ADMIN，内核参数优化要写 /proc/sys，都需要 root
 User=root
 WorkingDirectory=${APP_DIR}
 ExecStart=${BIN} run -c ${CONFIG}
 Restart=always
 RestartSec=3
+# 文件句柄上限：高并发时 accept 撞默认值会报 EMFILE
 LimitNOFILE=1048576
 StandardOutput=journal
 StandardError=journal
@@ -265,6 +313,7 @@ EOF
     has_systemd && systemctl daemon-reload
 }
 
+# 下载二进制到位（安装或更新都走这里）
 download_binary() {
     local arch url tmp
     arch="$(detect_arch)" || return 1
@@ -304,25 +353,33 @@ cmd_install() {
     fi
 
     if [ "$fresh" = 1 ]; then
-        echo
-        step "初始设置（直接回车用默认值）"
+        if [ "${MF_AUTO:-}" = 1 ]; then
+            # 全自动：默认端口 + 随机隐藏入口 + 保持默认密码 admin123（无提问）
+            local port=12321 path
+            path="$(rand_path)"
+            "$BIN" panel --port "$port" --path "$path" -c "$CONFIG" \
+                || { err "写入面板设置失败"; return 1; }
+        else
+            echo
+            step "初始设置（直接回车用默认值）"
 
-        local port; read -r -p "面板端口 [回车=12321]: " port; port="${port:-12321}"
-        [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] \
-            || { warn "端口无效，用 12321"; port=12321; }
+            local port; read -r -p "面板端口 [回车=12321]: " port; port="${port:-12321}"
+            [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] \
+                || { warn "端口无效，用 12321"; port=12321; }
 
-        local defpath; defpath="$(rand_path)"
-        echo -e "  ${DIM}隐藏入口 = 把登录页藏到一个随机路径后面，别人扫端口看不到面板${NC}"
-        local path; read -r -p "隐藏入口路径 [回车=随机 $defpath，输 off 关闭]: " path
-        path="${path:-$defpath}"
+            local defpath; defpath="$(rand_path)"
+            echo -e "  ${DIM}隐藏入口 = 把登录页藏到一个随机路径后面，别人扫端口看不到面板${NC}"
+            local path; read -r -p "隐藏入口路径 [回车=随机 $defpath，输 off 关闭]: " path
+            path="${path:-$defpath}"
 
-        local pass; read -r -p "面板密码 [回车=保持默认 admin123]: " pass
+            local pass; read -r -p "面板密码 [回车=保持默认 admin123]: " pass
 
-        # 落配置：一条 CLI 全搞定
-        local args=( panel --port "$port" -c "$CONFIG" )
-        if [ "$path" != "off" ]; then args+=( --path "$path" ); else args+=( --path off ); fi
-        [ -n "$pass" ] && args+=( --pass "$pass" )
-        "$BIN" "${args[@]}" || { err "写入面板设置失败"; return 1; }
+            # 落配置：一条 CLI 全搞定
+            local args=( panel --port "$port" -c "$CONFIG" )
+            if [ "$path" != "off" ]; then args+=( --path "$path" ); else args+=( --path off ); fi
+            [ -n "$pass" ] && args+=( --pass "$pass" )
+            "$BIN" "${args[@]}" || { err "写入面板设置失败"; return 1; }
+        fi
     fi
 
     # systemd 常驻
@@ -334,6 +391,9 @@ cmd_install() {
     else
         warn "系统没有 systemd，跳过服务安装。前台运行：$BIN run -c $CONFIG"
     fi
+
+    # 自动模式下不打完成横幅，交给 oneclick 统一收尾
+    [ "${MF_AUTO:-}" = 1 ] && return 0
 
     echo
     info "安装完成"
