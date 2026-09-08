@@ -7,43 +7,32 @@
 #  · 内置：改面板端口 / 改隐藏入口路径 / 改面板密码 / 查看面板地址
 #
 #  远程一键：
-#      bash <(curl -sL https://你的地址/mixflow.sh)
+#      bash <(curl -fsSL https://你的地址/mixflow.sh)
 #
-#  改自 @YanG-1989 的通用 Rust 管理脚本，专门化为 mixflow。
-#
+
 set -uo pipefail
 
 VERSION="1.0.0"
 
 # ============================================================
-#  ★ 你的下载地址（已按你的实际布局填好）★
+#  ★ 你的下载地址
 # ============================================================
-# 你是把二进制**直接放在仓库文件夹里**（不是发 Release），所以走 raw 原始文件地址。
-# {arch} 会被自动替换成 amd64 / arm64。
-# 对应的两个文件要传到：  仓库 YanG-1989/rust → 分支 main → 文件夹 MixFlow/
-#   MixFlow/mixflow-linux-amd64
-#   MixFlow/mixflow-linux-arm64
-# 注意大小写：raw 地址区分大小写，文件夹就是 MixFlow（大写 M、大写 F）。
-MIXFLOW_URL="${MIXFLOW_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow-linux-{arch}}"
 
-# 脚本自身托管地址（远程一键自举用）。把 mixflow.sh 也放进同一个 MixFlow/ 文件夹即可。
+MIXFLOW_URL="${MIXFLOW_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow-linux-{arch}}"
 SELF_URL="${MIXFLOW_SELF_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh}"
 
-# —— 备选：如果哪天改用 GitHub Release 发布，把上面 MIXFLOW_URL 留空，再用下面这组 ——
-# 留空 MIXFLOW_URL 时才会用到 REPO/TAG/ASSET 去 Release 里找。
 MIXFLOW_REPO="${MIXFLOW_REPO:-YanG-1989/rust}"
 MIXFLOW_TAG="${MIXFLOW_TAG:-latest}"
 MIXFLOW_ASSET="${MIXFLOW_ASSET:-mixflow-linux-{arch}}"
 # ============================================================
 
-# ---- 固定路径（想换 /opt 到别处，改这里）----
+# ---- 固定路径 ----
 APP_DIR="/opt/mixflow"
 BIN="$APP_DIR/mixflow"
 CONFIG="$APP_DIR/config.toml"
 SERVICE_NAME="mixflow"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 MARK="# managed-by: mixflow.sh"
-# 可选：把二进制软链到 PATH，这样能全局 `mixflow panel --port ...`
 CLI_LINK="/usr/local/bin/mixflow"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'; BLU='\033[0;36m'
@@ -57,8 +46,6 @@ step() { echo -e "${BLU}==>${NC} $*"; }
 # ============================================================
 #  远程执行自举
 # ============================================================
-# `bash <(curl ...)` 时 $0 是个已经被读掉的管道，落不了盘、sudo 重执行会失败。
-# 先把自己抓成真文件再 exec，后面逻辑就跟本地运行没区别。
 self_path() {
     local s="${BASH_SOURCE[0]}" d
     while [ -L "$s" ]; do
@@ -94,7 +81,6 @@ bootstrap_if_remote() {
 }
 bootstrap_if_remote "$@"
 
-# curl | bash 场景：stdin 是管道，read 会立刻 EOF，抢回终端
 if [ ! -t 0 ] && (exec < /dev/tty) 2>/dev/null; then
     exec < /dev/tty
 fi
@@ -151,18 +137,15 @@ download_url() {
     echo "${url//\{arch\}/$arch}"
 }
 
-# 下回来的得是个 ELF 可执行文件，不是 404 的 HTML 页
 looks_like_elf() {
     local magic; magic="$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')"
     [ "$magic" = "7f454c46" ]
 }
 
-# 随机暗门路径：/ + 10 位十六进制
 rand_path() {
     echo "/$(od -An -tx1 -N5 /dev/urandom 2>/dev/null | tr -d ' \n')"
 }
 
-# 读 config.toml 里 [panel] 段的某个 key（避开 nodes 里的同名字段）
 panel_get() { # key
     [ -f "$CONFIG" ] || return 1
     awk -v k="$1" '
@@ -175,7 +158,6 @@ panel_get() { # key
         }' "$CONFIG"
 }
 
-# 取本机公网 IP（多个源兜底），失败退到内网 IP
 public_ip() {
     local ip src
     for src in "https://api.ipify.org" "https://ipv4.icanhazip.com" "https://ip.sb"; do
@@ -187,7 +169,6 @@ public_ip() {
     echo "服务器IP"
 }
 
-# 探测本机所在地区的两位国家码（如 HK / JP / US），失败返回空
 detect_region() {
     local r
     r="$(curl -fsL --max-time 6 https://ipinfo.io/country 2>/dev/null | tr -d ' \r\n')"
@@ -198,9 +179,8 @@ detect_region() {
 }
 
 # ============================================================
-#  一键生成节点 + 终极优化（重点功能）
+#  一键生成节点 + 终极优化
 # ============================================================
-# 只干三件事：建 Trojan 节点、建 Hysteria2 节点（都随机端口）、套用终极代理优化。
 cmd_oneclick() {
     need_root "$@"
     is_installed || { err "请先安装 mixflow（菜单里的「安装」）"; return 1; }
@@ -209,9 +189,9 @@ cmd_oneclick() {
     echo -e "  ${GRN}一键生成节点 + 终极优化${NC}"
     echo -e "${BLU}=============================================${NC}"
     echo -e "  ${YEL}这个操作只做三件事：${NC}"
-    echo -e "    ${GRN}①${NC} 新建 1 个 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
-    echo -e "    ${GRN}②${NC} 新建 1 个 ${GRN}Hysteria2${NC} 节点（随机端口）"
-    echo -e "    ${GRN}③${NC} 套用「${GRN}终极代理模式${NC}」内核优化（BBR + 缓冲区等，持久化）"
+    echo -e "    ${GRN}①${NC} 内核终极优化（BBR + 缓冲区自适应，持久化）"
+    echo -e "    ${GRN}②${NC} 新建 1 个 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
+    echo -e "    ${GRN}③${NC} 新建 1 个 ${GRN}Hysteria2${NC} 节点（随机端口）"
     echo -e "  节点名自动带本机地区后缀，例如 ${GRN}Trojan-HK${NC} / ${GRN}Hysteria2-HK${NC}"
     echo -e "  ${DIM}不改端口、不动密码、不碰面板；节点建好即启用。${NC}"
     echo -e "${BLU}---------------------------------------------${NC}"
@@ -219,30 +199,41 @@ cmd_oneclick() {
     [[ "${c:-Y}" =~ ^[Nn]$ ]] && { warn "已取消"; return 1; }
 
     local region ip
-    step "探测本机地区 / 公网 IP ..."
     region="$(detect_region)"
     ip="$(public_ip)"
-    echo -e "  地区: ${GRN}${region:-未知}${NC}    公网IP: ${GRN}${ip}${NC}"
-
+    echo -e "  地区 ${GRN}${region:-未知}${NC} · 公网IP ${GRN}${ip}${NC}"
     echo
-    step "① ② 创建 Trojan + Hysteria2 节点"
-    "$BIN" quicknode --tag "$region" --host "$ip" -c "$CONFIG" || { err "建节点失败"; return 1; }
 
-    echo
-    step "③ 终极代理模式内核优化"
-    # 容器 / 部分 VPS 的 /proc/sys 只读，个别项写不进属正常，不算失败
-    "$BIN" optimize || warn "优化有部分项未写入（多为受限环境只读 /proc，可忽略）"
+    printf "  [1/3] 内核终极优化 ... "
+    local olog; olog="$(mktemp /tmp/mixflow.opt.XXXXXX)"
+    if "$BIN" optimize >"$olog" 2>&1; then
+        local n; n="$(grep -oE '生效 [0-9]+ 项' "$olog" | head -1)"
+        echo -e "${GRN}完成${NC} ${DIM}${n}${NC}"
+    else
+        echo -e "${YEL}部分项未生效（受限环境可忽略）${NC}"
+    fi
+    rm -f "$olog"
 
-    echo
-    step "重启服务让新节点生效"
+    printf "  [2/3] 创建 Trojan + Hysteria2 节点 ... "
+    local qlog; qlog="$(mktemp /tmp/mixflow.node.XXXXXX)"
+    if ! "$BIN" quicknode --tag "$region" --host "$ip" -c "$CONFIG" >"$qlog" 2>&1; then
+        echo -e "${RED}失败${NC}"; cat "$qlog"; rm -f "$qlog"; return 1
+    fi
+    echo -e "${GRN}OK${NC}"
+
+    printf "  [3/3] 重启服务 ... "
     if has_systemd && [ -f "$SERVICE_FILE" ]; then
         systemctl restart "$SERVICE_NAME"; sleep 1
-        systemctl is-active --quiet "$SERVICE_NAME" && info "服务运行中" || warn "服务未起来，看日志: mixflow 菜单→7"
+        systemctl is-active --quiet "$SERVICE_NAME" \
+            && echo -e "${GRN}运行中${NC}" || echo -e "${YEL}未起来（菜单→7 看日志）${NC}"
+    else
+        echo -e "${DIM}无 systemd${NC}"
     fi
-    echo
-    info "完成！节点链接见上方（也可进面板复制）"
-    firewall_hint "两个节点端口"
-    warn "务必在防火墙 / 云安全组放行这两个端口：Trojan 走 TCP、Hysteria2 走 UDP"
+
+    echo -e "\n${BLU}================  节点链接  ================${NC}"
+    cat "$qlog"; rm -f "$qlog"
+    echo -e "${BLU}===========================================${NC}"
+    warn "记得放行端口：Trojan 走 ${YEL}TCP${NC}，Hysteria2 走 ${YEL}UDP${NC}（防火墙 / 云安全组）"
 }
 write_service() {
     step "写入 $SERVICE_FILE"
@@ -250,8 +241,6 @@ write_service() {
 [Unit]
 ${MARK}
 Description=mixflow multi-protocol proxy + web panel
-# network-online 而不是 network：后者只保证网络栈起来了，不保证拿到地址，
-# 监听具体 IP 的服务会 bind 失败
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=300
@@ -259,13 +248,11 @@ StartLimitBurst=10
 
 [Service]
 Type=simple
-# WARP 隧道要 CAP_NET_ADMIN，内核参数优化要写 /proc/sys，都需要 root
 User=root
 WorkingDirectory=${APP_DIR}
 ExecStart=${BIN} run -c ${CONFIG}
 Restart=always
 RestartSec=3
-# 文件句柄上限：高并发时 accept 撞默认值会报 EMFILE
 LimitNOFILE=1048576
 StandardOutput=journal
 StandardError=journal
@@ -278,7 +265,6 @@ EOF
     has_systemd && systemctl daemon-reload
 }
 
-# 下载二进制到位（安装或更新都走这里）
 download_binary() {
     local arch url tmp
     arch="$(detect_arch)" || return 1

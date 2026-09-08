@@ -17,7 +17,7 @@ Trojan · Hysteria2 · SOCKS5 / HTTP　|　直连 / WARP 出站　|　内核终�
 ## 🚀 一键安装
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh)
+bash <(curl -sL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh)
 ```
 
 自动识别 CPU 架构下载对应二进制，装到 `/opt/mixflow`，systemd 常驻 + 开机自启。
@@ -27,14 +27,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 菜单里按 **`g`**，或直接：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh) oneclick
+bash <(curl -sL .../mixflow.sh) oneclick
 ```
 
 一个 `Y` 确认，只干三件事：
 
-> **①** 建一个 `Trojan-[地区]` 节点（随机端口）　**②** 建一个 `Hysteria2-[地区]` 节点（随机端口）　**③** 套用「专用代理 VPS · 终极模式」内核优化（BBR + 缓冲区自适应）
+> **①** 内核终极优化（BBR + 缓冲区自适应）　**②** 建一个 `Trojan-[地区]` 节点（随机端口）　**③** 建一个 `Hysteria2-[地区]` 节点（随机端口）
 
-节点名自动带上本机地区，如 `Trojan-HK` / `Hysteria2-HK`，建好即启用。
+先优化、后建节点，屏幕最后停留的就是节点链接；优化过程只显示一行结果，清爽不刷屏。节点名自动带上本机地区，如 `Trojan-HK` / `Hysteria2-HK`，建好即启用。
 
 ## 🎛️ 面板
 
@@ -65,7 +65,7 @@ cargo build --release --target x86_64-unknown-linux-musl   # amd64
 cross build --release --target aarch64-unknown-linux-musl   # arm64
 ```
 
-产物按 `mixflow-linux-amd64` / `mixflow-linux-arm64` 命名，放进本目录即可。详见 [COMPILE.md](./MixFlow/COMPILE.md)。
+产物按 `mixflow-linux-amd64` / `mixflow-linux-arm64` 命名，放进本目录即可。详见 [COMPILE.md](./COMPILE.md)。
 
 ---
 
