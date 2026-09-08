@@ -65,7 +65,7 @@ cargo build --release --target x86_64-unknown-linux-musl   # amd64
 cross build --release --target aarch64-unknown-linux-musl   # arm64
 ```
 
-产物按 `mixflow-linux-amd64` / `mixflow-linux-arm64` 命名，放进本目录即可。详见 [COMPILE.md](./COMPILE.md)。
+产物按 `mixflow-linux-amd64` / `mixflow-linux-arm64` 命名，放进本目录即可。详见 [COMPILE.md](./MixFlow/COMPILE.md)。
 
 ---
 
