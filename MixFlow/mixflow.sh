@@ -36,6 +36,7 @@ BIN="$APP_DIR/mixflow"
 CONFIG="$APP_DIR/config.toml"
 SERVICE_NAME="mixflow"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+OPENRC_FILE="/etc/init.d/${SERVICE_NAME}"
 MARK="# managed-by: mixflow.sh"
 # 可选：把二进制软链到 PATH，这样能全局 `mixflow panel --port ...`
 CLI_LINK="/usr/local/bin/mixflow"
@@ -97,7 +98,44 @@ SELF="$(self_path)"
 #  通用工具
 # ============================================================
 has_systemd() { [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; }
+has_openrc()  { command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; }
 is_installed() { [ -x "$BIN" ]; }
+
+# ---- 服务抽象层：systemd 与 OpenRC(Alpine) 统一入口 ----
+# 是否已被任一 init 系统托管
+svc_managed() {
+    { has_systemd && [ -f "$SERVICE_FILE" ]; } || { has_openrc && [ -f "$OPENRC_FILE" ]; }
+}
+# 写服务单元并设为开机自启
+svc_write_and_enable() {
+    if has_systemd; then
+        write_service
+        systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
+    elif has_openrc; then
+        write_openrc
+        rc-update add "$SERVICE_NAME" default >/dev/null 2>&1
+    fi
+}
+# start/stop/restart 统一动作
+svc_do() { # action
+    if has_systemd && [ -f "$SERVICE_FILE" ]; then
+        systemctl "$1" "$SERVICE_NAME"
+    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
+        rc-service "$SERVICE_NAME" "$1"
+    else
+        return 2
+    fi
+}
+# 是否运行中
+svc_active() {
+    if has_systemd && [ -f "$SERVICE_FILE" ]; then
+        systemctl is-active --quiet "$SERVICE_NAME"
+    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
+        rc-service "$SERVICE_NAME" status >/dev/null 2>&1
+    else
+        return 1
+    fi
+}
 
 need_root() {
     [ "$(id -u)" -eq 0 ] && return 0
@@ -255,12 +293,12 @@ cmd_oneclick() {
     echo -e "${GRN}OK${NC}"
 
     printf "  [3/3] 重启服务 ... "
-    if has_systemd && [ -f "$SERVICE_FILE" ]; then
-        systemctl restart "$SERVICE_NAME"; sleep 1
-        systemctl is-active --quiet "$SERVICE_NAME" \
+    if svc_managed; then
+        svc_do restart >/dev/null 2>&1; sleep 1
+        svc_active \
             && echo -e "${GRN}运行中${NC}" || echo -e "${YEL}未起来（菜单→7 看日志）${NC}"
     else
-        echo -e "${DIM}无 systemd${NC}"
+        echo -e "${DIM}未托管${NC}"
     fi
 
     # 收尾：面板信息 + 节点链接，干净地打印在最后
@@ -311,6 +349,33 @@ WantedBy=multi-user.target
 EOF
     chmod 644 "$SERVICE_FILE"
     has_systemd && systemctl daemon-reload
+}
+
+# OpenRC(Alpine) 版服务单元
+write_openrc() {
+    step "写入 $OPENRC_FILE"
+    cat > "$OPENRC_FILE" <<EOF
+#!/sbin/openrc-run
+${MARK}
+description="mixflow multi-protocol proxy + web panel"
+# supervise-daemon 负责挂了自动拉起（对应 systemd 的 Restart=always）
+supervisor="supervise-daemon"
+command="${BIN}"
+command_args="run -c ${CONFIG}"
+directory="${APP_DIR}"
+pidfile="/run/${SERVICE_NAME}.pid"
+respawn_delay=3
+# 高并发文件句柄上限（对应 systemd 的 LimitNOFILE）
+rc_ulimit="-n 1048576"
+output_log="/var/log/${SERVICE_NAME}.log"
+error_log="/var/log/${SERVICE_NAME}.log"
+
+depend() {
+    need net
+    after firewall
+}
+EOF
+    chmod 755 "$OPENRC_FILE"
 }
 
 # 下载二进制到位（安装或更新都走这里）
@@ -382,14 +447,13 @@ cmd_install() {
         fi
     fi
 
-    # systemd 常驻
-    if has_systemd; then
-        write_service
-        systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
-        systemctl restart "$SERVICE_NAME"
+    # 常驻托管（systemd / OpenRC 自动识别）
+    if has_systemd || has_openrc; then
+        svc_write_and_enable
+        svc_do restart >/dev/null 2>&1
         sleep 1
     else
-        warn "系统没有 systemd，跳过服务安装。前台运行：$BIN run -c $CONFIG"
+        warn "系统既无 systemd 也无 OpenRC，跳过服务安装。前台运行：$BIN run -c $CONFIG"
     fi
 
     # 自动模式下不打完成横幅，交给 oneclick 统一收尾
@@ -407,8 +471,8 @@ cmd_install() {
 #  面板设置
 # ============================================================
 restart_note() {
-    if has_systemd && [ -f "$SERVICE_FILE" ]; then
-        systemctl restart "$SERVICE_NAME" && info "已重启生效"
+    if svc_managed; then
+        svc_do restart >/dev/null 2>&1 && info "已重启生效"
     else
         warn "改动已写入配置，请手动重启进程生效"
     fi
@@ -491,10 +555,10 @@ cmd_set_pass() {
 #  服务操作
 # ============================================================
 svc() { # action
-    if has_systemd && [ -f "$SERVICE_FILE" ]; then
-        need_root; systemctl "$1" "$SERVICE_NAME"
+    if svc_managed; then
+        need_root; svc_do "$1"
     else
-        err "未以 systemd 服务安装"; return 1
+        err "未托管为系统服务（systemd/OpenRC）"; return 1
     fi
 }
 cmd_start()   { svc start   && info "已启动"; }
@@ -503,16 +567,21 @@ cmd_restart() { svc restart && info "已重启"; }
 cmd_status()  {
     if has_systemd && [ -f "$SERVICE_FILE" ]; then
         systemctl status "$SERVICE_NAME" --no-pager -l 2>/dev/null || true
+    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
+        rc-service "$SERVICE_NAME" status 2>/dev/null || true
     else
-        warn "未以 systemd 服务安装"
+        warn "未托管为系统服务（systemd/OpenRC）"
     fi
 }
 cmd_log() {
     if has_systemd && [ -f "$SERVICE_FILE" ]; then
         echo "(Ctrl+C 停止查看)"; sleep 1
         journalctl -u "$SERVICE_NAME" -n 100 -f --no-pager 2>/dev/null || true
+    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
+        echo "(Ctrl+C 停止查看)"; sleep 1
+        tail -n 100 -f "/var/log/${SERVICE_NAME}.log" 2>/dev/null || true
     else
-        warn "未以 systemd 服务安装"
+        warn "未托管为系统服务（systemd/OpenRC）"
     fi
 }
 
@@ -523,6 +592,11 @@ cmd_uninstall() {
         systemctl disable "$SERVICE_NAME" >/dev/null 2>&1 || true
         rm -f "$SERVICE_FILE"; systemctl daemon-reload
         systemctl reset-failed 2>/dev/null || true
+        info "服务已移除"
+    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
+        rc-service "$SERVICE_NAME" stop 2>/dev/null || true
+        rc-update del "$SERVICE_NAME" default >/dev/null 2>&1 || true
+        rm -f "$OPENRC_FILE"
         info "服务已移除"
     fi
     [ -L "$CLI_LINK" ] && rm -f "$CLI_LINK"
@@ -539,8 +613,8 @@ cmd_uninstall() {
 #  菜单
 # ============================================================
 state_line() {
-    if has_systemd && [ -f "$SERVICE_FILE" ]; then
-        if systemctl is-active --quiet "$SERVICE_NAME"; then echo -e "${GRN}● 运行中${NC}"
+    if svc_managed; then
+        if svc_active; then echo -e "${GRN}● 运行中${NC}"
         else echo -e "${RED}○ 已停止${NC}"; fi
     elif is_installed; then echo -e "${YEL}○ 已安装未托管${NC}"
     else echo -e "${DIM}未安装${NC}"; fi
