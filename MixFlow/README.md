@@ -24,9 +24,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 一个 `Y` 确认，全程无需其它输入。跑完屏幕直接给出**面板地址 + 账号密码 + 两条节点链接**：
 
-> **①** 内核终极优化（BBR + 缓冲区自适应）　**②** 建 `Trojan-[地区]` 节点（随机端口）　**③** 建 `Hysteria2-[地区]` 节点（随机端口）
-
-节点名自动带本机地区（如 `Trojan-HK`），先优化后建节点、优化只显示一行结果，清爽不刷屏。已装过则跳过安装，只做优化 + 建节点。
+> **①** `内核优化`[代理模式]　**②** 建 `Trojan-[地区]` 节点（随机端口）　**③** 建 `Hysteria2-[地区]` 节点（随机端口）  
 
 <details>
 <summary>只想装好、自己配置？（不带 <code>oneclick</code>）</summary>
