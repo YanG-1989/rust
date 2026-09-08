@@ -69,7 +69,7 @@ bootstrap_if_remote() {
     [ "${MF_BOOTSTRAPPED:-}" = "1" ] && return 0
 
     local tmp
-    tmp="$(mktemp /tmp/mixflow.XXXXXX.sh)" || { err "无法创建临时文件"; exit 1; }
+    tmp="$(mktemp /tmp/mixflow.XXXXXX)" || { err "无法创建临时文件"; exit 1; }
     step "远程模式：抓取脚本到 $tmp"
     if ! curl -fsSL "$SELF_URL" -o "$tmp" 2>/dev/null; then
         rm -f "$tmp"
