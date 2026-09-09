@@ -24,7 +24,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 一个 `Y` 确认，全程无需其它输入。跑完屏幕直接给出**面板地址 + 账号密码 + 两条节点链接**：
 
-> **①** `内核优化`[代理模式]　**②** 建 `Trojan-[地区]` 节点（随机端口）　**③** 建 `Hysteria2-[地区]` 节点（随机端口）  
+> **①** `内核优化`[代理模式]　**②** 建 `Trojan-[地区]` 节点　**③** 建 `Hysteria2-[地区]` 节点 　**④** 建 `Socks5-[地区]` 节点 
 
 <details>
 <summary>只想装好、自己配置？（不带 <code>oneclick</code>）</summary>
