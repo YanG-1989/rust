@@ -230,7 +230,7 @@ detect_region() {
 # ============================================================
 #  一键生成节点 + 终极优化
 # ============================================================
-# 只干三件事：建 Trojan 节点、建 Hysteria2 节点（都随机端口）、套用终极代理优化。
+# 只干三件事：建 Mixed / Trojan / Hysteria2 三个节点（都随机端口）、套用终极代理优化。
 cmd_oneclick() {
     need_root "$@"
 
@@ -244,8 +244,9 @@ cmd_oneclick() {
         echo -e "    ${GRN}0${NC} 下载二进制并装好面板（端口 12321 · 随机隐藏入口）"
     fi
     echo -e "    ${GRN}①${NC} 内核终极优化（BBR + 缓冲区自适应，持久化）"
-    echo -e "    ${GRN}②${NC} 新建 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
-    echo -e "    ${GRN}③${NC} 新建 ${GRN}Hysteria2${NC} 节点（随机端口）"
+    echo -e "    ${GRN}②${NC} 新建 ${GRN}Mixed${NC} 节点    （随机端口 · SOCKS5+HTTP · 自动生成账号密码）"
+    echo -e "    ${GRN}③${NC} 新建 ${GRN}Trojan${NC} 节点   （随机端口 · 自签 TLS）"
+    echo -e "    ${GRN}④${NC} 新建 ${GRN}Hysteria2${NC} 节点（随机端口）"
     echo -e "  节点名自动带本机地区后缀，例如 ${GRN}Trojan-HK${NC} / ${GRN}Hysteria2-HK${NC}"
     echo -e "${BLU}---------------------------------------------${NC}"
     local c; read -r -p "确认执行? [Y/n] " c
@@ -285,7 +286,7 @@ cmd_oneclick() {
     rm -f "$olog"
 
     # ② ③ 建节点
-    printf "  [2/3] 创建 Trojan + Hysteria2 节点 ... "
+    printf "  [2/3] 创建 Mixed + Trojan + Hysteria2 节点 ... "
     local qlog; qlog="$(mktemp /tmp/mixflow.node.XXXXXX)"
     if ! "$BIN" quicknode --tag "$region" --host "$ip" -c "$CONFIG" >"$qlog" 2>&1; then
         echo -e "${RED}失败${NC}"; cat "$qlog"; rm -f "$qlog"; return 1
@@ -313,7 +314,7 @@ cmd_oneclick() {
     echo -e "\n${BLU}================  节点链接  ================${NC}"
     cat "$qlog"; rm -f "$qlog"
     echo -e "${BLU}===========================================${NC}"
-    warn "记得放行端口：面板 ${YEL}TCP ${port:-12321}${NC}；Trojan 走 ${YEL}TCP${NC}、Hysteria2 走 ${YEL}UDP${NC}（防火墙 / 云安全组）"
+    warn "记得放行端口：面板 ${YEL}TCP ${port:-12321}${NC}；Mixed / Trojan 走 ${YEL}TCP${NC}、Hysteria2 走 ${YEL}UDP${NC}（防火墙 / 云安全组）"
     [ "${pass:-admin123}" = "admin123" ] && \
         warn "面板仍是默认密码，建议改掉：${DIM}mixflow panel --pass 新密码 -c $CONFIG${NC}"
 }
@@ -690,7 +691,7 @@ mixflow 安装 · 管理脚本 v${VERSION}
 
 子命令：
   install / update     安装或更新（下载二进制 + 起服务）
-  oneclick             ★ 一键：建 Trojan + Hysteria2 两个节点（随机端口）并做终极优化
+  oneclick             ★ 一键：建 Mixed / Trojan / Hysteria2 三个节点（随机端口）并做终极优化
   start|stop|restart|status|log
   url                  打印面板访问地址
   port <N>             改面板端口
