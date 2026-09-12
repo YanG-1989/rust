@@ -13,7 +13,7 @@
 ## 🚀 安装
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/rust/main/4gTV/4gtv.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/4gTV/4gtv.sh)
 ```
 
 打开管理菜单，选 `1` 安装。装的时候会问两个问题，**全部回车走默认值也行**：
