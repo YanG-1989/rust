@@ -20,8 +20,8 @@ MARK="# managed-by: 4gtv.sh"
 # ★ 下载地址（按架构替换 {arch}：amd64 / arm64 / armv7）
 # 示例 Release 资产名：4gtv-linux-amd64 / 4gtv-linux-arm64 / 4gtv-linux-armv7
 # 公开版：无模式4 / 无诊断页；保留代理设置与完整取流逻辑；默认随机端口+隐藏路径
-DOWNLOAD_URL="${FOURGTV_PUBLIC_URL:-https://github.com/4gTV/releases/latest/download/4gtv-linux-{arch}}"
-SELF_URL="${FOURGTV_PUBLIC_SELF_URL:-https://raw.githubusercontent.com/rust/main/4gTV/4gtv.sh}"
+DOWNLOAD_URL="${FOURGTV_PUBLIC_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/4gTV/4gtv-linux-{arch}}"
+SELF_URL="${FOURGTV_PUBLIC_SELF_URL:-https://raw.githubusercontent.com/YanG-1989/rust/main/4gTV/4gtv.sh}"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'; BLU='\033[0;36m'
 DIM='\033[2m'; NC='\033[0m'
