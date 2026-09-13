@@ -9,7 +9,7 @@
 
 set -uo pipefail
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 APP_NAME="4gtv"
 APP_DIR="/opt/4gtv"
 BIN="$APP_DIR/4gtv"
@@ -155,8 +155,8 @@ ExecStart=${BIN}
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
-StandardOutput=journal
-StandardError=journal
+StandardOutput=null
+StandardError=null
 SyslogIdentifier=${SERVICE_NAME}
 
 [Install]
@@ -178,8 +178,8 @@ directory="${APP_DIR}"
 pidfile="/run/${SERVICE_NAME}.pid"
 respawn_delay=3
 rc_ulimit="-n 1048576"
-output_log="/var/log/${SERVICE_NAME}.log"
-error_log="/var/log/${SERVICE_NAME}.log"
+output_log="/dev/null"
+error_log="/dev/null"
 
 depend() {
     need net
@@ -224,7 +224,8 @@ show_url() {
     path="${path%/}"
     echo -e "${BLU}访问地址：${NC}"
     if [ -n "$path" ]; then
-        echo -e "  首页      ${GRN}http://${ip}:${port}${path}/${NC}"
+        # 首页去掉了末尾多余的 /
+        echo -e "  首页      ${GRN}http://${ip}:${port}${path}${NC}"
         echo -e "  播放器    ${GRN}http://${ip}:${port}${path}/player${NC}"
         if [ -f "$APP_DIR/4gtv_admin_key.txt" ]; then
             local admin_key; admin_key="$(cat "$APP_DIR/4gtv_admin_key.txt")"
@@ -281,7 +282,7 @@ cmd_install() {
         if svc_active; then
             info "服务已启动"
         else
-            warn "服务未起来，请检查日志"
+            warn "服务未起来，请检查输出"
         fi
     else
         warn "系统既无 systemd 也无 OpenRC，请手动前台运行：PORT=$PORT BASE_PATH=$BASE_PATH $BIN"
@@ -345,13 +346,7 @@ cmd_uninstall() {
 }
 
 cmd_log() {
-    if has_systemd && [ -f "$SERVICE_FILE" ]; then
-        journalctl -u "$SERVICE_NAME" -n 80 -f --no-pager
-    elif has_openrc && [ -f "$OPENRC_FILE" ]; then
-        tail -n 80 -f "/var/log/${SERVICE_NAME}.log" 2>/dev/null || true
-    else
-        warn "未托管服务"
-    fi
+    warn "系统层控制台日志已关，请直接查阅 Rust 程序自带生成的日志文件"
 }
 
 main_menu() {
@@ -374,7 +369,7 @@ main_menu() {
         echo -e "${BLU}---------------------------------------------${NC}"
         if [ -x "$BIN" ]; then
             echo "  1) 更新二进制   2) 查看地址"
-            echo "  3) 启动  4) 停止  5) 重启  6) 日志"
+            echo "  3) 启动  4) 停止  5) 重启  6) 日志说明"
             echo "  7) 改端口  8) 改隐藏路径"
             echo -e "  u) ${RED}卸载${NC}"
         else
@@ -389,7 +384,7 @@ main_menu() {
             3) need_root; svc_do start; info "已启动" ;;
             4) need_root; svc_do stop; info "已停止" ;;
             5) need_root; svc_do restart; info "已重启" ;;
-            6) cmd_log ;;
+            6) cmd_log; read -r -p "回车继续..." _ ;;
             7) cmd_set_port; read -r -p "回车继续..." _ ;;
             8) cmd_set_path; read -r -p "回车继续..." _ ;;
             u|U) cmd_uninstall; read -r -p "回车继续..." _ ;;
