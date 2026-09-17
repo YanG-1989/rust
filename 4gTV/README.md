@@ -89,6 +89,10 @@ PORT=12345 BASE_PATH=/mysecret /opt/4gtv/4gtv
 | EPG | 可选开启，定时更新 |
 | API 限流 | **内置**，限制并发取流并带排队超时，降低封 IP 风险 |
 
+## 📝 更新日志
+
+完整变更记录见 → [CHANGELOG.md](./CHANGELOG.md)
+
 
 ## ℹ️ 说明
 
