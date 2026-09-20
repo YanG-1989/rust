@@ -24,7 +24,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 一个 `Y` 确认，全程无需其它输入。跑完屏幕直接给出**面板地址 + 账号密码 + 两条节点链接**：
 
-> **①** `内核优化`[代理模式]　**②** 建 `Trojan-[地区]` 节点　**③** 建 `Hysteria2-[地区]` 节点 　**④** 建 `Socks5-[地区]` 节点 
+> **①** `内核优化`[代理模式]　**②** 建 `Trojan-[地区]` 节点　**③** 建 `Hysteria2-[地区]` 节点 　**④** 建 `Socks5-[地区]` 节点
 
 <details>
 <summary>只想装好、自己配置？（不带 <code>oneclick</code>）</summary>
@@ -58,6 +58,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 | `mixflow panel --path /xxx` | 设隐藏入口（`--path off` 关闭） |
 | `mixflow panel --pass <密码>` | 改面板密码（忘密码也能改，不用进面板） |
 
+---
+
+## 📝 更新日志
+
+| 版本 | 说明 |
+| ---- | ---- |
+| 0.3.0 | **分流功能**：分流库 / 本节点规则；流程图与地图；规则按序匹配；WARP 使用流程优化；面板按钮与布局优化 |
+| 0.2.0 | **Trojan WS 优化**：对外显示端口、优选域名；增加端口编辑功能；回落地址 tip |
+| 0.1.1 | **Hysteria2**：增加 Salamander 混淆与 masquerade 伪装，并且默认开启；兼容性排查 |
+| 0.1.0 | 初版：Trojan / Hysteria2 / Mixed；直连 / 远程代理 / WARP 出站；Web 面板与一键安装 |
 
 ---
 
