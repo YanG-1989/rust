@@ -91,16 +91,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 | 版本 | 说明 |
 | ---- | ---- |
-| 1.2.x | TCP Fast Open 支持：内核检测、自动提升、入站启用、面板状态显示、编译修复（libc setsockopt） |
-| 1.2.x | Trojan 订阅完善：URI 补 `udp=1` / `security=tls`，默认 `udp+tfo`，随机端口上限修正为 65535 |
-| 1.2.x | 面板 / quicknode 随机端口真实 bind 探测；通用订阅 UA 补 ClashX/CFW |
-| 1.2.x | 去掉分享链接 `allowInsecure`（兼容新 Xray）；自签证书附 `pcs`/`pinSHA256` 指纹；通用订阅按 UA 自动选 Clash / sing-box / Base64 |
-| 0.3.x | Trojan WS 优化：对外显示端口、优选域名；分流库 / 本节点规则交互优化；流程图与地图标签修正；回落地址提示 |
+| 0.3.8 | TCP Fast Open 全链路支持：内核检测、自动提升、入站启用、面板状态显示；Trojan 订阅完善（URI 补 `udp=1`/`security=tls`，默认 `udp+tfo`，随机端口上限修正为 65535）；面板/quicknode 随机端口真实 bind 探测；去掉分享链接 `allowInsecure`（兼容新 Xray），自签证书附 `pcs`/`pinSHA256` 指纹；通用订阅按 UA 自动选 Clash / sing-box / Base64 |
+| 0.3.0 | Trojan WS 优化：对外显示端口、优选域名；分流库 / 本节点规则交互优化；流程图与地图标签修正；回落地址提示 |
 | 0.2.x | GeoIP 多源并行多数决、过滤占位坐标；WARP 随节点自动注册/拆除隧道；分流配置与面板密码交互优化 |
 | 0.1.x | Hysteria2 互通性排查：分阶段连接日志、自签证书完善、SNI 回落规则 |
 | 0.1.0 | 初版：Trojan / Hysteria2（UDP、带宽、Salamander 混淆、伪装站点）/ Mixed；分流规则与分流库；直连 / 远程代理 / WARP 出站；Web 面板与一键安装 |
 
-> 当前内核版本 `mixflow v68 / 1.2.8`，版本号与 `Cargo.toml` 对齐。
+> 当前内核版本 `v0.3.8`（对齐 `Cargo.toml`），为最新版本。
 
 ---
 
