@@ -29,8 +29,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 - 在面板里手动添加节点，逐项填写协议、端口、密码等参数；
 - 或者直接编辑 `config.toml`（示例见 `config.example.toml`），支持：
   - `[[nodes]]`：Mixed（SOCKS5+HTTP）/ Trojan / Hysteria2 节点，监听地址、端口、出站方式（`direct` / `warp`）等全部手写；
-  - Hysteria2 专属参数：`hy2_udp`（UDP 转发）、`hy2_up_mbps` / `hy2_down_mbps`（带宽 & Brutal 恒速发送）、`hy2_obfs_password`（Salamander 混淆）、`hy2_masq_type`（伪装成 404 / 静态文本 / 本地目录 / 反代网站）；
-  - `[[nodes.rules]]`：按域名 / IP 匹配的分流规则，逐条从上到下匹配，命中即停，落地可选 `direct` / `warp` / 自定义 `proxy`（SOCKS5 或 HTTP）；
+  - Hysteria2 专属参数：`hy2_udp`、`hy2_up_mbps` / `hy2_down_mbps`（带宽 & Brutal）、`hy2_obfs_password`（Salamander 混淆）、`hy2_masq_type`（伪装）、`hy2_hop_ports`（端口跳跃，留空默认开，`off` 关闭）；
+  - `[[nodes.rules]]`：按域名 / IP 匹配的分流规则，从上到下命中即停，落地可选 `direct` / `warp` / 自定义 `proxy`；
   - `[warp]`：WARP 账号文件路径；
   - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；
   - `[log]`：日志级别、落盘路径与滚动大小上限。
@@ -39,17 +39,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 ### 方式二：懒人一条龙（全新机器直接跑）
 
-新机器不想自己配，跑这条命令，装面板、建节点、做优化一气呵成：
-
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/mixflow.sh) oneclick
 ```
 
-一个 `Y` 确认，全程无需其它输入，自动完成：
+一个 `Y` 确认，自动完成：
 
-> **①** 内核终极优化（BBR + 缓冲区自适应，持久化）　**②** 建 `Mixed` 节点（随机端口 · SOCKS5+HTTP · 自动生成账号密码）　**③** 建 `Trojan-[地区]` 节点（随机端口 · 自签 TLS）　**④** 建 `Hysteria2-[地区]` 节点（随机端口）
+> **①** 内核终极优化（BBR + 缓冲区自适应，持久化）　**②** 建 `Mixed` 节点　**③** 建 `Trojan-[地区]` 节点　**④** 建 `Hysteria2-[地区]` 节点
 
-跑完屏幕直接给出**面板地址 + 账号密码 + 节点链接**，节点名自动带本机地区后缀（如 `Trojan-HK`）。如果机器已经装过 mixflow，这条命令只会执行优化 + 建节点，不会重装。
+跑完屏幕直接给出**面板地址 + 账号密码 + 节点链接**。若机器已装过 mixflow，只会执行优化 + 建节点，不重装。
 
 ---
 
@@ -57,7 +55,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 默认地址 `http://服务器IP:12321`，账号 `admin` / `admin123`（**请尽快改**）。
 
-**隐藏入口**：设一个随机路径后，只有访问 `http://IP:12321/你的密路径` 才进得去，其它路径一律 404，扫端口的人看不到面板存在。
+**隐藏入口**：设随机路径后，只有访问 `http://IP:12321/你的密路径` 才进得去，其它路径一律 404。
+
+页签：**概览** / **节点** / **分流** / **订阅** / **设置**。
+
+---
 
 ## 🧰 常用命令
 
@@ -69,21 +71,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 | `mixflow optimize` | 终极代理模式内核优化 |
 | `mixflow panel --port <N>` | 改面板端口 |
 | `mixflow panel --path /xxx` | 设隐藏入口（`--path off` 关闭） |
-| `mixflow panel --pass <密码>` | 改面板密码（忘密码也能改，不用进面板） |
+| `mixflow panel --pass <密码>` | 改面板密码（忘密码也能改） |
 
 ---
 
 ## ✨ 功能特性
 
-- **多协议**：Trojan（TLS）、Hysteria2（QUIC）、Mixed（SOCKS5 + HTTP）。
-- **多种出站**：直连、远程 SOCKS5/HTTP 代理、WARP；每条分流规则可单独指定出站，支持按域名（含通配符 / `keyword:` 关键词）和 IP/CIDR 匹配，从上到下命中即停。
-- **分流可视化**：面板内置流程图与地图，直观查看规则命中路径；分流库可复用常用规则集。
-- **Hysteria2 抗封锁**：Salamander 混淆（探测包无有效密码直接丢弃）+ 伪装站点（404 / 固定文本 / 本地静态目录 / 反代真实网站）。
-- **订阅链接**：按客户端 UA 自动适配 Clash / sing-box / Base64 通用格式；自签证书自动附带指纹信息，免额外确认。
-- **Web 管理面板**：节点增删改、隐藏入口、账号密码可在忘记密码时用命令行直接重置。
-- **WARP 集成**：创建节点自动注册并按需拉起隧道，节点全部删除后自动拆除隧道。
-- **内核终极优化**：一键 BBR + 缓冲区自适应调优，并持久化到重启后仍生效；TCP Fast Open 自动检测内核支持并按需启用。
-- **一键部署**：自动识别 amd64 / arm64，systemd 常驻 + 开机自启，全局 `mixflow` 命令。
+- **多协议**：Trojan（TLS / WS）、Hysteria2（QUIC）、Mixed（SOCKS5 + HTTP）。
+- **多种出站**：直连、远程 SOCKS5/HTTP、WARP；每条分流规则可单独指定出站。
+- **分流可视化**：流程图与地图；分流库可复用常用规则集。
+- **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口仍只监听一个，区间 REDIRECT；宽约 3000~8000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
+- **订阅链接**：按 UA 自动适配 Clash / sing-box / Base64；自签证书附 `pcs` / `pinSHA256` 指纹。
+- **Web 面板**：节点增删改、概览（版本 / 负载 / 流量）、忘记密码可用命令行重置。
+- **WARP**：创建节点自动注册并按 family 拉起隧道，节点删光后自动拆除。
+- **内核优化**：一键 BBR + 缓冲区调优并持久化；TCP Fast Open 内核检测与自动启用。
+- **一键部署**：amd64 / arm64，systemd 常驻，全局 `mixflow` 命令。
 
 ---
 
@@ -91,16 +93,18 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 | 版本 | 说明 |
 | ---- | ---- |
-| 0.3.8 | TCP Fast Open 全链路支持：内核检测、自动提升、入站启用、面板状态显示；Trojan 订阅完善（URI 补 `udp=1`/`security=tls`，默认 `udp+tfo`，随机端口上限修正为 65535）；面板/quicknode 随机端口真实 bind 探测；去掉分享链接 `allowInsecure`（兼容新 Xray），自签证书附 `pcs`/`pinSHA256` 指纹；通用订阅按 UA 自动选 Clash / sing-box / Base64 |
-| 0.3.0 | Trojan WS 优化：对外显示端口、优选域名；分流库 / 本节点规则交互优化；流程图与地图标签修正；回落地址提示 |
-| 0.2.x | GeoIP 多源并行多数决、过滤占位坐标；WARP 随节点自动注册/拆除隧道；分流配置与面板密码交互优化 |
-| 0.1.x | Hysteria2 互通性排查：分阶段连接日志、自签证书完善、SNI 回落规则 |
-| 0.1.0 | 初版：Trojan / Hysteria2（UDP、带宽、Salamander 混淆、伪装站点）/ Mixed；分流规则与分流库；直连 / 远程代理 / WARP 出站；Web 面板与一键安装 |
+| 0.3.22–0.3.24 | **Hy2 端口跳跃**：nft/iptables REDIRECT；默认开启（宽 3000~8000）；无权限自动跳过；订阅 `mport`/`ports` |
+| 0.3.17–0.3.21 | **概览与界面**：概览页签（版本/负载/流量）；页签精简；SVG 图标；失败徽章可点；文案收进浮框 |
+| 0.3.11–0.3.16 | **节点与订阅**：Hy2 Brutal 徽章与软提示；TLS/CDN 联动；订阅导出/链接拆分；WS/CDN 软检查 |
+| 0.3.1–0.3.10 | **TFO 与基础**：TFO 全链路；版本统一 0.3.x；自签指纹；UA 自适应订阅；随机端口 bind 探测；panel 拆分 |
+| 0.3.0 | Trojan WS 对外端口/优选域名；分流库 UI；地图香港投影 |
+| 0.2.x | GeoIP 多源多数决；WARP 随节点自动注册/拆除 |
+| 0.1.x | 初版：Trojan / Hy2 / Mixed；分流；WARP；Web 面板 |
 
-> 当前内核版本 `v0.3.8`（对齐 `Cargo.toml`），为最新版本。
+> 当前 **`0.3.24`**，与 `Cargo.toml` 对齐。
 
 ---
 
 <div align="center">
-<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>。</sub>
+<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>（含端口跳跃区间）。</sub>
 </div>
