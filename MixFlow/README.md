@@ -32,8 +32,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
   - Hysteria2 专属参数：`hy2_udp`、`hy2_up_mbps` / `hy2_down_mbps`（带宽 & Brutal）、`hy2_obfs_password`（Salamander 混淆）、`hy2_masq_type`（伪装）、`hy2_hop_ports`（端口跳跃，留空默认开，`off` 关闭）；
   - `[[nodes.rules]]`：按域名 / IP 匹配的分流规则，从上到下命中即停，落地可选 `direct` / `warp` / 自定义 `proxy`；
   - `[warp]`：WARP 账号文件路径；
-  - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；
-  - `[log]`：日志级别、落盘路径与滚动大小上限。
+  - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；Cloudflare API 令牌与默认根域名（可选，用于「CF部署」）；
+  - `[log]`：日志级别、落盘路径与滚动大小上限（默认约 1MB）。
 
 改完配置重启服务生效。之后随时可以在菜单里按 `g` 一键补建节点 + 跑内核优化。
 
@@ -80,9 +80,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 - **多协议**：Trojan（TLS / WS）、Hysteria2（QUIC）、Mixed（SOCKS5 + HTTP）。
 - **多种出站**：直连、远程 SOCKS5/HTTP、WARP；每条分流规则可单独指定出站。
 - **分流可视化**：流程图与地图；分流库可复用常用规则集。
-- **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口仍只监听一个，区间 REDIRECT；宽约 3000~8000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
-- **订阅链接**：按 UA 自动适配 Clash / sing-box / Base64；自签证书附 `pcs` / `pinSHA256` 指纹。
-- **Web 面板**：节点增删改、概览（版本 / 负载 / 流量）、忘记密码可用命令行重置。
+- **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口只监听一个，区间 REDIRECT；宽约 500~1000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
+- **Cloudflare 部署**：设置中保存 API 令牌（需**读取和写入**）；Trojan WebSocket 节点可「CF部署」——自动写 DNS 小黄云 + Origin 回源端口；删节点时同步清理对应 DNS / Origin Rule。
+- **订阅与导出**：按 UA 自动适配 Clash / sing-box / Base64；自签附 `pcs` / `pinSHA256`；WS 套 CF 时订阅不强制 skip-cert-verify；一次性导出与订阅链接支持**二维码**。
+- **可观测**：概览页（版本 / 负载 / 流量 / 运行状态）；排障环形记录（中文摘要）；文件日志大小上限。
+- **Web 面板**：节点增删改、回落地址探测、忘记密码可用命令行重置。
 - **WARP**：创建节点自动注册并按 family 拉起隧道，节点删光后自动拆除。
 - **内核优化**：一键 BBR + 缓冲区调优并持久化；TCP Fast Open 内核检测与自动启用。
 - **一键部署**：amd64 / arm64，systemd 常驻，全局 `mixflow` 命令。
@@ -93,18 +95,20 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 | 版本 | 说明 |
 | ---- | ---- |
-| 0.3.22–0.3.24 | **Hy2 端口跳跃**：nft/iptables REDIRECT；默认开启（宽 3000~8000）；无权限自动跳过；订阅 `mport`/`ports` |
-| 0.3.17–0.3.21 | **概览与界面**：概览页签（版本/负载/流量）；页签精简；SVG 图标；失败徽章可点；文案收进浮框 |
-| 0.3.11–0.3.16 | **节点与订阅**：Hy2 Brutal 徽章与软提示；TLS/CDN 联动；订阅导出/链接拆分；WS/CDN 软检查 |
-| 0.3.1–0.3.10 | **TFO 与基础**：TFO 全链路；版本统一 0.3.x；自签指纹；UA 自适应订阅；随机端口 bind 探测；panel 拆分 |
+| 0.3.27–0.3.33 | **Cloudflare / 订阅**：CF部署（DNS 橙云 + Origin 回源）；删节点清理 CF；导出与订阅二维码；令牌文案 |
+| 0.3.25–0.3.26 | **排障与日志**：排障环形记录（中文）；日志上限；概览分页与文案精简；回落地址探测 |
+| 0.3.22–0.3.24 | **Hy2 端口跳跃**：nft/iptables REDIRECT；默认开启；无权限自动跳过；订阅 `mport`/`ports` |
+| 0.3.17–0.3.21 | **概览与界面**：概览页签；页签精简；SVG 图标；失败徽章可点 |
+| 0.3.11–0.3.16 | **节点与订阅**：Hy2 Brutal；TLS/CDN 联动；订阅导出/链接拆分；WS/CDN 软检查 |
+| 0.3.1–0.3.10 | **TFO 与基础**：TFO 全链路；版本统一 0.3.x；自签指纹；UA 自适应订阅 |
 | 0.3.0 | Trojan WS 对外端口/优选域名；分流库 UI；地图香港投影 |
 | 0.2.x | GeoIP 多源多数决；WARP 随节点自动注册/拆除 |
 | 0.1.x | 初版：Trojan / Hy2 / Mixed；分流；WARP；Web 面板 |
 
-> 当前 **`0.3.24`**，与 `Cargo.toml` 对齐。
+> 当前 **`0.3.33`**，与 `Cargo.toml` 对齐。
 
 ---
 
 <div align="center">
-<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>（含端口跳跃区间）。</sub>
+<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>（含端口跳跃区间）。套 Cloudflare 时外网走 CF 端口（如 443 / 2053），本机监听端口由 Origin Rule 回源。</sub>
 </div>
