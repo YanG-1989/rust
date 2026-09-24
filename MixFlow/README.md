@@ -32,7 +32,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
   - Hysteria2 专属参数：`hy2_udp`、`hy2_up_mbps` / `hy2_down_mbps`（带宽 & Brutal）、`hy2_obfs_password`（Salamander 混淆）、`hy2_masq_type`（伪装）、`hy2_hop_ports`（端口跳跃，留空默认开，`off` 关闭）；
   - `[[nodes.rules]]`：按域名 / IP 匹配的分流规则，从上到下命中即停，落地可选 `direct` / `warp` / 自定义 `proxy`；
   - `[warp]`：WARP 账号文件路径；
-  - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；Cloudflare API 令牌与默认根域名（可选，用于「CF部署」）；
+  - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；Cloudflare API 令牌与默认根域名；面板绑定域名 / 证书（Origin CA 或 Let's Encrypt DNS-01）与 HTTPS；
   - `[log]`：日志级别、落盘路径与滚动大小上限（默认约 1MB）。
 
 改完配置重启服务生效。之后随时可以在菜单里按 `g` 一键补建节点 + 跑内核优化。
@@ -81,7 +81,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 - **多种出站**：直连、远程 SOCKS5/HTTP、WARP；每条分流规则可单独指定出站。
 - **分流可视化**：流程图与地图；分流库可复用常用规则集。
 - **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口只监听一个，区间 REDIRECT；宽约 500~1000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
-- **Cloudflare 部署**：设置中保存 API 令牌（需**读取和写入**）；Trojan WebSocket 节点可「CF部署」——自动写 DNS 小黄云 + Origin 回源端口；删节点时同步清理对应 DNS / Origin Rule。
+- **Cloudflare 部署**：设置中保存 API 令牌（需**读取和写入**；面板 Origin CA 另需 **SSL and Certificates → Edit**）；Trojan WebSocket 可「CF部署」——自动写 DNS 小黄云 + Origin 回源 + **Origin CA 证书**（同 Zone 通配复用）；删节点时同步清理 DNS / Origin Rule。
+- **面板域名与证书**：设置页绑定域名、DNS 小黄云、对外固定 443 回源；证书可选 **Cloudflare Origin CA（约 15 年，仅橙云）** 或 **Let's Encrypt（内置 DNS-01，公有信任）**。
+  - **LE 可与小黄云同时开启**：走的是 DNS-01（写 `_acme-challenge` TXT），不依赖 HTTP-01，A 记录是否橙云不影响签发。
+  - **LE 自动续期**：进程内每 6 小时检查，距到期 ≤30 天则再签；条件：`cert_mode=letsencrypt` 且已启用 HTTPS、有域名与 CF Token。**解绑 DNS**（会关 HTTPS）或改为 Origin CA / 关 HTTPS 即停止续期。
+  - Origin CA 按 Zone 签 `*.根域`，面板域名与节点 CDN **同主域共用**；申请成功后开启面板 HTTPS（证书热加载），并自动勾选「仅 HTTPS / 仅允许本域名」。
 - **订阅与导出**：按 UA 自动适配 Clash / sing-box / Base64；自签附 `pcs` / `pinSHA256`；WS 套 CF 时订阅不强制 skip-cert-verify；一次性导出与订阅链接支持**二维码**。
 - **可观测**：概览页（版本 / 负载 / 流量 / 运行状态）；排障环形记录（中文摘要）；文件日志大小上限。
 - **Web 面板**：节点增删改、回落地址探测、忘记密码可用命令行重置。
@@ -95,7 +99,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 | 版本 | 说明 |
 | ---- | ---- |
-| 0.3.27–0.3.33 | **Cloudflare / 订阅**：CF部署（DNS 橙云 + Origin 回源）；删节点清理 CF；导出与订阅二维码；令牌文案 |
+| 0.3.36–0.3.39 | **面板域名与证书**：绑定 DNS / 解绑；Origin CA（Zone 通配约 15 年）与 Let's Encrypt（DNS-01，可开小黄云）；面板 HTTPS 热加载；Host 校验；CF 一键回源写入 Origin CA |
+| 0.3.27–0.3.35 | **Cloudflare / 订阅**：CF部署（DNS 橙云 + Origin 回源）；删节点清理 CF；WS+CF 显式 insecure=0 / skip-cert-verify: false；导出与订阅二维码；令牌文案 |
 | 0.3.25–0.3.26 | **排障与日志**：排障环形记录（中文）；日志上限；概览分页与文案精简；回落地址探测 |
 | 0.3.22–0.3.24 | **Hy2 端口跳跃**：nft/iptables REDIRECT；默认开启；无权限自动跳过；订阅 `mport`/`ports` |
 | 0.3.17–0.3.21 | **概览与界面**：概览页签；页签精简；SVG 图标；失败徽章可点 |
@@ -105,7 +110,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 | 0.2.x | GeoIP 多源多数决；WARP 随节点自动注册/拆除 |
 | 0.1.x | 初版：Trojan / Hy2 / Mixed；分流；WARP；Web 面板 |
 
-> 当前 **`0.3.33`**，与 `Cargo.toml` 对齐。
+> 当前 **`0.3.39`**，与 `Cargo.toml` / `VERSION` 对齐。
 
 ---
 
