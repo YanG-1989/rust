@@ -15,7 +15,7 @@
 
 set -uo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 
 # ============================================================
 #  ★ 下载地址 ★
@@ -496,6 +496,38 @@ cmd_install() {
     firewall_hint "$port"
 }
 
+# ---- 更新：只换二进制，保留配置 ----
+cmd_update() {
+    need_root "$@"
+    is_installed || { err "还没安装，先选 1 安装"; return 1; }
+    step "更新二进制（配置保留）..."
+    svc_managed && svc_do stop >/dev/null 2>&1
+    download_binary || { err "更新失败"; svc_managed && svc_do start >/dev/null 2>&1; return 1; }
+    install_cli
+    svc_managed && svc_do start >/dev/null 2>&1
+    sleep 1
+    local port; port="$(get_port)"
+    if health_check "$port"; then
+        info "更新完成，服务运行正常"
+    else
+        warn "二进制已更新，但服务健康检查没通过，菜单 7 看日志"
+    fi
+}
+
+# ---- 重装：备份配置后干净重装 ----
+cmd_reinstall() {
+    need_root "$@"
+    is_installed || { err "还没安装，先选 1 安装"; return 1; }
+    echo -e "${YEL}重装会删除当前配置并重新走初始设置流程。${NC}"
+    read -r -p "已自动备份配置到 config.toml.bak，确认继续? [y/N] " c
+    [[ "${c:-N}" =~ ^[Yy]$ ]] || { warn "已取消"; return 0; }
+    [ -f "$CONFIG" ] && cp -f "$CONFIG" "${CONFIG}.bak" && info "配置已备份到 ${CONFIG}.bak"
+    svc_managed && svc_do stop >/dev/null 2>&1
+    rm -f "$CONFIG"
+    # 走全新安装流程（会重新问端口/账号/密码）
+    cmd_install "$@"
+}
+
 # ============================================================
 #  面板设置
 # ============================================================
@@ -651,12 +683,12 @@ main_menu() {
         fi
         echo -e "${BLU}---------------------------------------------${NC}"
         if is_installed; then
-            echo "   1) 更新 / 重装二进制      2) 查看面板地址"
+            echo "   1) 更新二进制(保留配置)  2) 查看面板地址"
             echo "   3) 启动   4) 停止   5) 重启   6) 状态   7) 日志"
             echo -e "${BLU}--- 面板设置 --------------------------------${NC}"
             echo "   8) 改端口        9) 改账号密码"
             echo -e "${BLU}---------------------------------------------${NC}"
-            echo -e "   u) ${RED}卸载${NC}"
+            echo -e "   r) ${YEL}重装(清空配置重来)${NC}   u) ${RED}卸载${NC}"
         else
             echo "   1) 安装 iptv-proxy"
         fi
@@ -672,7 +704,7 @@ main_menu() {
             continue
         fi
         case "$opt" in
-            1) cmd_install;  pause ;;
+            1) cmd_update;   pause ;;
             2) show_panel_url; pause ;;
             3) cmd_start;    pause ;;
             4) cmd_stop;     pause ;;
@@ -681,6 +713,7 @@ main_menu() {
             7) cmd_log ;;
             8) cmd_set_port; pause ;;
             9) cmd_set_pass; pause ;;
+            r|R) cmd_reinstall; pause ;;
             u|U) read -r -p "确认卸载? [y/N] " c
                  [[ "${c:-N}" =~ ^[Yy]$ ]] && { cmd_uninstall; pause; } || warn "已取消" ;;
             0|q|Q) exit 0 ;;
@@ -700,7 +733,9 @@ iptv-proxy 安装 · 管理脚本 v${VERSION}
   bash <(curl -fsSL ${SELF_URL})
 
 子命令：
-  install / update     安装或更新（下载二进制 + 起服务）
+  install              全新安装（下载二进制 + 初始化配置 + 起服务）
+  update               更新二进制（保留配置，重启服务）
+  reinstall            重装（备份配置后清空重来）
   start|stop|restart|status|log
   url                  打印面板访问地址
   port <N>             改面板端口
@@ -722,7 +757,9 @@ EOF
 cmd="${1:-}"; [ $# -gt 0 ] && shift
 case "$cmd" in
     ""|menu)          main_menu ;;
-    install|update)   cmd_install "$@" ;;
+    install)        cmd_install "$@" ;;
+    update)         cmd_update "$@" ;;
+    reinstall)      cmd_reinstall "$@" ;;
     start)            cmd_start ;;
     stop)             cmd_stop ;;
     restart|reload)   cmd_restart ;;
