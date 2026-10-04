@@ -1,10 +1,10 @@
 # 📺 IPTV Proxy
 
-**IPTV Proxy + Web Admin Panel · One-Click Deploy**
+**IPTV 代理 + Web 管理面板 · 一键部署**
 
-[简体中文](README.zh-CN.md) | **English**
+[English](README.en.md) | **简体中文**
 
-Proxy / Redirect / Rewrite / DASH four forwarding modes | EPG guide · Logos · Timeshift · Scheduled recording | Token auth + IP blocking
+代理 / 重定向 / 改写 / DASH 四种转发模式 | EPG 节目单 · 台标 · 回看 · 定时录制 | Token 鉴权 + IP 封禁
 
 ![arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
 ![service](https://img.shields.io/badge/service-systemd%20%7C%20OpenRC-green)
@@ -12,68 +12,68 @@ Proxy / Redirect / Rewrite / DASH four forwarding modes | EPG guide · Logos · 
 
 ---
 
-## 🚀 Install
+## 🚀 安装
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/IPTV%20Proxy/iptv-proxy.sh)
 ```
 
-Open the management menu, choose `1` to install. It asks three questions, **all can be left as defaults**:
+打开管理菜单，选 `1` 安装。装的时候会问三个问题，**全部回车走默认值也行**：
 
-| Prompt | Default |
+| 问题 | 默认 |
 | --- | --- |
-| Panel port | `19899` |
-| Panel username | `admin` |
-| Panel password | `admin` |
+| 面板端口 | `19899` |
+| 面板账号 | `admin` |
+| 面板密码 | `admin` |
 
-Auto-detects CPU arch (amd64 / arm64 / armv7), installs to `/opt/iptv-proxy`, runs as systemd service (OpenRC on Alpine) with autostart.
+自动识别 CPU 架构（amd64 / arm64 / armv7），装到 `/opt/iptv-proxy`，systemd（Alpine 用 OpenRC）常驻 + 开机自启。
 
-The binary never overwrites your existing `config.toml`, so **updating is just running it again and choosing `1`** — channels and settings are kept.
+装完二进制不会覆盖已有的 `config.toml`，所以**更新版本直接再跑一次选 `1`**，频道和设置都不会丢。
 
-## 🎛️ Panel
+## 🎛️ 面板
 
-URL `http://SERVER_IP:19899/panel`, login `admin` / `admin` (**change it ASAP**).
+地址 `http://服务器IP:19899/panel`，账号 `admin` / `admin`（**请尽快改**）。
 
-Channels, groups, EPG, cache, and security are all configured in the panel; subscription URLs are generated on the "Groups" page.
+频道、分组、EPG、缓存、安全管控全在面板里配；订阅地址在「分组管理」页生成。
 
-> The panel listens on `[::]` (dual-stack) by default. **Remember to open the TCP port in your firewall / cloud security group.**
+> 面板端口默认监听 `[::]` 双栈。**记得在防火墙 / 云安全组放行对应 TCP 端口。**
 
-## 🧰 Commands
+## 🧰 常用命令
 
-> After install the script is symlinked into `PATH` as `iptv-proxy`.
+> 装好后脚本已软链到 `PATH`，可全局使用 `iptv-proxy`。
 
-| Command | What it does |
+| 命令 | 作用 |
 | --- | --- |
-| `iptv-proxy` | Open management menu |
-| `iptv-proxy update` | Update binary to latest (keeps config) |
-| `iptv-proxy reinstall` | Reinstall from scratch (backs up config first) |
-| `iptv-proxy port <N>` | Change panel port |
-| `iptv-proxy pass <password> [user]` | Change panel password / username (works even if you forgot it) |
-| `iptv-proxy restart` | Restart service |
-| `iptv-proxy log` | View logs |
-| `iptv-proxy url` | Print panel URL |
-| `iptv-proxy uninstall` | Uninstall |
+| `iptv-proxy` | 打开管理菜单 |
+| `iptv-proxy update` | 更新二进制到最新版（保留配置） |
+| `iptv-proxy reinstall` | 重装（先备份配置再清空重来） |
+| `iptv-proxy port <N>` | 改面板端口 |
+| `iptv-proxy pass <密码> [账号]` | 改面板密码 / 账号（**忘密码也能改**，不用进面板） |
+| `iptv-proxy restart` | 重启服务 |
+| `iptv-proxy log` | 看运行日志 |
+| `iptv-proxy url` | 打印面板地址 |
+| `iptv-proxy uninstall` | 卸载 |
 
-Port/password changes edit `config.toml` directly and restart the service; old login sessions are invalidated.
+改端口和改密码都是直接改 `config.toml` 并重启服务，改完旧登录会话失效，需要重新登录。
 
-## 📂 File Layout
+## 📂 文件位置
 
 ```
 /opt/iptv-proxy/
-├── iptv-proxy          binary
-├── config.toml         config (everything changed in panel is stored here)
-├── iptv-proxy.log      logs
-└── cache/              segment cache, logos, EPG data
+├── iptv-proxy          二进制
+├── config.toml         配置（面板里改的东西都存这）
+├── iptv-proxy.log      运行日志
+└── cache/              切片缓存、台标、EPG 数据
 ```
 
-Uninstall asks whether to delete `/opt/iptv-proxy` too — answer `N` to keep data, reinstall restores everything.
+卸载时会问要不要一起删 `/opt/iptv-proxy`，选 `N` 就只停服务、保留数据，重装即恢复。
 
-## ℹ️ Notes
+## ℹ️ 说明
 
-- **ffmpeg is optional**: only needed for MP4 → HLS transcoding in "Media assets". Proxying works fine without it.
-- Panel password is stored as SHA-256, never in plaintext.
-- Custom download source: `IPTV_URL=https://your-mirror/iptv-proxy-linux-{arch} bash <(curl -fsSL ...)`
+- **ffmpeg 可选**：只有面板「视频素材」的 MP4 → HLS 转码用得上，不装不影响正常代理。
+- 面板密码在配置里存的是 SHA-256，明文不落盘。
+- 想换下载源：`IPTV_URL=https://你的地址/iptv-proxy-linux-{arch} bash <(curl -fsSL ...)`
 
-## 📝 Changelog
+## 📝 更新日志
 
-See [CHANGELOG.md](CHANGELOG.md) for recent updates.
+最近更新见 [CHANGELOG.md](CHANGELOG.md)。
