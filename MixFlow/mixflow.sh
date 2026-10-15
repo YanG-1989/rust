@@ -401,8 +401,24 @@ download_binary() {
     chmod +x "$tmp"
     mv -f "$tmp" "$BIN"
     info "二进制就位：$BIN"
-    # 方便全局用 CLI（改端口/密码/暗门都靠它）
-    ln -sf "$BIN" "$CLI_LINK" 2>/dev/null && info "已软链到 $CLI_LINK（可直接用 mixflow 命令）" || true
+    # /usr/local/bin/mixflow 做成 wrapper 而不是直链：
+    # 交互式无参数敲 mixflow → 自动进 mixflow.sh 菜单（而不是直接 run 撞端口）
+    # 带参数或非交互 → 透传给二进制原样执行（systemd 的 ExecStart 不受影响）
+    cat > "$CLI_LINK" <<EOF
+#!/usr/bin/env bash
+# mixflow CLI wrapper (由 mixflow.sh 生成)
+BIN="$BIN"
+if [ \$# -eq 0 ] && [ -t 0 ]; then
+    if command -v mixflow.sh >/dev/null 2>&1; then
+        exec mixflow.sh
+    fi
+    echo "管理菜单请用： mixflow.sh" >&2
+    echo "直接启动服务： mixflow run -c $CONFIG" >&2
+    exit 1
+fi
+exec "\$BIN" "\$@"
+EOF
+    chmod +x "$CLI_LINK" 2>/dev/null && info "已安装 $CLI_LINK（无参数进菜单，带参数透传二进制）" || true
     # 管理菜单脚本自身也装一份：本地直接敲 mixflow.sh 就进菜单，不用每次 curl
     # （管道执行时 SELF 是 bootstrap 落盘的临时文件，拷出来照样可用）
     install_self
@@ -615,7 +631,7 @@ cmd_uninstall() {
         rm -f "$OPENRC_FILE"
         info "服务已移除"
     fi
-    [ -L "$CLI_LINK" ] && rm -f "$CLI_LINK"
+    [ -f "$CLI_LINK" ] && rm -f "$CLI_LINK" && info "已移除 $CLI_LINK"
     [ -f "$SCRIPT_LINK" ] && rm -f "$SCRIPT_LINK" && info "已移除 $SCRIPT_LINK"
     echo
     read -r -p "连同 $APP_DIR (含二进制和配置) 一起删掉? [y/N] " c
