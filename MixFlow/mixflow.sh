@@ -9,7 +9,7 @@
 
 set -uo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 
 # ============================================================
 #  ★ 你的下载地址（已按你的实际布局填好）★
@@ -40,6 +40,8 @@ OPENRC_FILE="/etc/init.d/${SERVICE_NAME}"
 MARK="# managed-by: mixflow.sh"
 # 可选：把二进制软链到 PATH，这样能全局 `mixflow panel --port ...`
 CLI_LINK="/usr/local/bin/mixflow"
+# 管理菜单脚本自身也装一份到 PATH，本地直接敲 mixflow.sh 就进菜单
+SCRIPT_LINK="/usr/local/bin/mixflow.sh"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'; BLU='\033[0;36m'
 DIM='\033[2m'; NC='\033[0m'
@@ -401,6 +403,19 @@ download_binary() {
     info "二进制就位：$BIN"
     # 方便全局用 CLI（改端口/密码/暗门都靠它）
     ln -sf "$BIN" "$CLI_LINK" 2>/dev/null && info "已软链到 $CLI_LINK（可直接用 mixflow 命令）" || true
+    # 管理菜单脚本自身也装一份：本地直接敲 mixflow.sh 就进菜单，不用每次 curl
+    # （管道执行时 SELF 是 bootstrap 落盘的临时文件，拷出来照样可用）
+    install_self
+}
+
+# 把本脚本装到 PATH（幂等）。管道/远程执行时 SELF 为临时落盘文件，同样可装。
+install_self() {
+    [ -n "${SELF:-}" ] && [ -f "$SELF" ] || return 0
+    # 跳过 /dev/fd 这种还没落盘的（正常走不到，bootstrap 已处理）
+    case "$SELF" in /dev/fd/*|/proc/self/fd/*) return 0 ;; esac
+    if [ "$SELF" -ef "$SCRIPT_LINK" 2>/dev/null ]; then return 0; fi
+    cp -f "$SELF" "$SCRIPT_LINK" 2>/dev/null && chmod +x "$SCRIPT_LINK" 2>/dev/null \
+        && info "管理菜单已装到 $SCRIPT_LINK（本地直接敲 mixflow.sh）" || true
 }
 
 cmd_install() {
@@ -601,6 +616,7 @@ cmd_uninstall() {
         info "服务已移除"
     fi
     [ -L "$CLI_LINK" ] && rm -f "$CLI_LINK"
+    [ -f "$SCRIPT_LINK" ] && rm -f "$SCRIPT_LINK" && info "已移除 $SCRIPT_LINK"
     echo
     read -r -p "连同 $APP_DIR (含二进制和配置) 一起删掉? [y/N] " c
     if [[ "${c:-N}" =~ ^[Yy]$ ]]; then
@@ -629,6 +645,7 @@ main_menu() {
         echo -e "${BLU}=============================================${NC}"
         echo -e "        mixflow 安装 · 管理   ${DIM}v${VERSION}${NC}"
         echo -e "${BLU}=============================================${NC}"
+        echo -e "  ${DIM}mixflow=二进制CLI · mixflow.sh=本菜单${NC}"
         echo -e "  状态: $(state_line)"
         if is_installed; then
             echo -e "  目录: ${DIM}${APP_DIR}${NC}"
@@ -698,6 +715,7 @@ mixflow 安装 · 管理脚本 v${VERSION}
   path <P|off>         改隐藏入口路径（off = 关闭）
   pass <密码> [用户名] 改面板密码 / 用户名
   uninstall            卸载
+  self-install         把本脚本装到 /usr/local/bin/mixflow.sh（本地直接敲）
 
 安装位置：${APP_DIR}
 配置文件：${CONFIG}
@@ -725,6 +743,7 @@ case "$cmd" in
     path)             [ -n "${1:-}" ] && { need_root; "$BIN" panel --path "$1" -c "$CONFIG" && restart_note && show_panel_url; } || cmd_set_path ;;
     pass)             if [ -n "${1:-}" ]; then need_root; a=( panel --pass "$1" -c "$CONFIG" ); [ -n "${2:-}" ] && a+=( --user "$2" ); "$BIN" "${a[@]}" && restart_note; else cmd_set_pass; fi ;;
     uninstall|remove) cmd_uninstall "$@" ;;
+    self-install)     need_root "$@"; install_self ;;
     -h|--help|help)   usage ;;
     -v|--version)     echo "v${VERSION}" ;;
     *) err "未知命令: $cmd"; echo; usage; exit 1 ;;
