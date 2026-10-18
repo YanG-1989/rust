@@ -444,7 +444,7 @@ cmd_install() {
     # 首次安装：生成默认配置，然后按用户输入设端口 / 暗门 / 密码
     if [ ! -f "$CONFIG" ]; then
         step "生成默认配置 $CONFIG"
-        "$BIN" init -c "$CONFIG" >/dev/null 2>&1 || {
+        "$BIN" init -c "$CONFIG" </dev/null >/dev/null 2>&1 || {
             err "初始化配置失败"; return 1
         }
     fi
@@ -454,7 +454,7 @@ cmd_install() {
             # 全自动：默认端口 + 随机隐藏入口 + 保持默认密码 admin123（无提问）
             local port=12321 path
             path="$(rand_path)"
-            "$BIN" panel --port "$port" --path "$path" -c "$CONFIG" \
+            "$BIN" panel --port "$port" --path "$path" -c "$CONFIG" </dev/null \
                 || { err "写入面板设置失败"; return 1; }
         else
             echo
@@ -475,7 +475,7 @@ cmd_install() {
             local args=( panel --port "$port" -c "$CONFIG" )
             if [ "$path" != "off" ]; then args+=( --path "$path" ); else args+=( --path off ); fi
             [ -n "$pass" ] && args+=( --pass "$pass" )
-            "$BIN" "${args[@]}" || { err "写入面板设置失败"; return 1; }
+            "$BIN" "${args[@]}" </dev/null || { err "写入面板设置失败"; return 1; }
         fi
     fi
 
