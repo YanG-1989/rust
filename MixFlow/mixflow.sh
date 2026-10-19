@@ -80,6 +80,10 @@ bootstrap_if_remote() {
         err "换地址：MIXFLOW_SELF_URL=https://... bash <(curl -sL https://...)"
         exit 1
     fi
+    local ssz; ssz="$(wc -c < "$tmp" 2>/dev/null | tr -d ' ')"
+    if [ "${ssz:-0}" -lt 10000 ]; then
+        rm -f "$tmp"; err "下载到的脚本只有 ${ssz:-0} 字节，不完整，已丢弃"; exit 1
+    fi
     head -1 "$tmp" | grep -q '^#!' || {
         rm -f "$tmp"; err "下载到的不是脚本（地址可能返回了错误页）"; exit 1
     }
@@ -101,7 +105,7 @@ SELF="$(self_path)"
 # ============================================================
 has_systemd() { [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; }
 has_openrc()  { command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; }
-is_installed() { [ -x "$BIN" ] && looks_like_elf "$BIN"; }
+is_installed() { [ -x "$BIN" ] && looks_like_elf "$BIN" && [ "$(file_size "$BIN")" -ge "$MIN_BIN_SIZE" ]; }
 
 # ---- 服务抽象层：systemd 与 OpenRC(Alpine) 统一入口 ----
 # 是否已被任一 init 系统托管
@@ -182,6 +186,11 @@ download_url() {
     fi
     echo "${url//\{arch\}/$arch}"
 }
+
+# 最小体积保护：太小的一律不要（几百字节通常是跳转页 / 错误页 / wrapper）
+MIN_BIN_SIZE="${MIXFLOW_MIN_BIN_SIZE:-1048576}"   # 二进制至少 1MB（正常约 3MB）
+MIN_SCRIPT_SIZE=10000                              # 脚本至少 10KB（正常约 30KB）
+file_size() { wc -c < "$1" 2>/dev/null | tr -d ' '; }
 
 # 下回来的得是个 ELF 可执行文件，不是 404 的 HTML 页
 looks_like_elf() {
@@ -424,6 +433,13 @@ download_binary() {
     tmp="$(mktemp "$APP_DIR/.mixflow.dl.XXXXXX")" || { err "无法在 $APP_DIR 建临时文件"; return 1; }
     if ! fetch "$url" "$tmp"; then
         rm -f "$tmp"; err "下载失败。检查 MIXFLOW_REPO / 资产名，或用 MIXFLOW_URL 指定完整地址"
+        return 1
+    fi
+    local sz; sz="$(file_size "$tmp")"
+    if [ "${sz:-0}" -lt "$MIN_BIN_SIZE" ]; then
+        rm -f "$tmp"
+        err "下载到的文件只有 ${sz:-0} 字节（正常应 ≥ $((MIN_BIN_SIZE/1024/1024))MB），已丢弃，未安装。"
+        err "多半是被跳转页 / 错误页 / 网络拦截替换了，请检查网络或 MIXFLOW_URL"
         return 1
     fi
     if ! looks_like_elf "$tmp"; then
