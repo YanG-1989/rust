@@ -101,7 +101,7 @@ SELF="$(self_path)"
 # ============================================================
 has_systemd() { [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; }
 has_openrc()  { command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; }
-is_installed() { [ -x "$BIN" ]; }
+is_installed() { [ -x "$BIN" ] && looks_like_elf "$BIN"; }
 
 # ---- 服务抽象层：systemd 与 OpenRC(Alpine) 统一入口 ----
 # 是否已被任一 init 系统托管
@@ -385,6 +385,8 @@ EOF
 # 无参数 + 交互终端 → 进 mixflow.sh 菜单；`mixflow menu` 同样进菜单；
 # 其余参数 → 透传给二进制（systemd 的 ExecStart 不受影响）
 write_cli_wrapper() {
+    # 旧版本可能把 CLI_LINK 做成指向二进制的软链接，直接 cat > 会顺着链接把二进制覆盖掉
+    rm -f "$CLI_LINK"
     cat > "$CLI_LINK" <<EOF
 #!/usr/bin/env bash
 # mixflow CLI wrapper (由 mixflow.sh 生成)
@@ -406,7 +408,9 @@ EOF
 ensure_entrypoints() {
     is_installed || return 0
     [ "$(id -u)" -eq 0 ] || return 0
-    { [ -x "$CLI_LINK" ] && grep -q 'mixflow.sh' "$CLI_LINK" 2>/dev/null; } || write_cli_wrapper
+    if [ -L "$CLI_LINK" ] || ! grep -q 'mixflow CLI wrapper' "$CLI_LINK" 2>/dev/null; then
+        write_cli_wrapper
+    fi
     [ -x "$SCRIPT_LINK" ] || install_self
 }
 
@@ -449,7 +453,7 @@ install_self() {
 cmd_install() {
     need_root "$@"
     local fresh=0
-    is_installed || fresh=1
+    [ -f "$CONFIG" ] || fresh=1
 
     download_binary || return 1
 
