@@ -381,6 +381,35 @@ EOF
     chmod 755 "$OPENRC_FILE"
 }
 
+# 生成 /usr/local/bin/mixflow wrapper（幂等，可重复调用）
+# 无参数 + 交互终端 → 进 mixflow.sh 菜单；`mixflow menu` 同样进菜单；
+# 其余参数 → 透传给二进制（systemd 的 ExecStart 不受影响）
+write_cli_wrapper() {
+    cat > "$CLI_LINK" <<EOF
+#!/usr/bin/env bash
+# mixflow CLI wrapper (由 mixflow.sh 生成)
+BIN="$BIN"
+if { [ \$# -eq 0 ] && [ -t 0 ]; } || [ "\${1:-}" = "menu" ]; then
+    if command -v mixflow.sh >/dev/null 2>&1; then
+        exec mixflow.sh menu
+    fi
+    echo "管理菜单请用： mixflow.sh" >&2
+    echo "直接启动服务： mixflow run -c $CONFIG" >&2
+    exit 1
+fi
+exec "\$BIN" "\$@"
+EOF
+    chmod +x "$CLI_LINK" 2>/dev/null && info "已安装 $CLI_LINK（无参数进菜单，带参数透传二进制）" || true
+}
+
+# 进菜单时自检：已安装但入口缺失就补上（仅 root 才写得进 /usr/local/bin）
+ensure_entrypoints() {
+    is_installed || return 0
+    [ "$(id -u)" -eq 0 ] || return 0
+    { [ -x "$CLI_LINK" ] && grep -q 'mixflow.sh' "$CLI_LINK" 2>/dev/null; } || write_cli_wrapper
+    [ -x "$SCRIPT_LINK" ] || install_self
+}
+
 # 下载二进制到位（安装或更新都走这里）
 download_binary() {
     local arch url tmp
@@ -401,24 +430,7 @@ download_binary() {
     chmod +x "$tmp"
     mv -f "$tmp" "$BIN"
     info "二进制就位：$BIN"
-    # /usr/local/bin/mixflow 做成 wrapper 而不是直链：
-    # 交互式无参数敲 mixflow → 自动进 mixflow.sh 菜单（而不是直接 run 撞端口）
-    # 带参数或非交互 → 透传给二进制原样执行（systemd 的 ExecStart 不受影响）
-    cat > "$CLI_LINK" <<EOF
-#!/usr/bin/env bash
-# mixflow CLI wrapper (由 mixflow.sh 生成)
-BIN="$BIN"
-if [ \$# -eq 0 ] && [ -t 0 ]; then
-    if command -v mixflow.sh >/dev/null 2>&1; then
-        exec mixflow.sh
-    fi
-    echo "管理菜单请用： mixflow.sh" >&2
-    echo "直接启动服务： mixflow run -c $CONFIG" >&2
-    exit 1
-fi
-exec "\$BIN" "\$@"
-EOF
-    chmod +x "$CLI_LINK" 2>/dev/null && info "已安装 $CLI_LINK（无参数进菜单，带参数透传二进制）" || true
+    write_cli_wrapper
     # 管理菜单脚本自身也装一份：本地直接敲 mixflow.sh 就进菜单，不用每次 curl
     # （管道执行时 SELF 是 bootstrap 落盘的临时文件，拷出来照样可用）
     install_self
@@ -656,6 +668,7 @@ state_line() {
 pause() { echo; read -r -p "按回车返回 ..." _; }
 
 main_menu() {
+    ensure_entrypoints >/dev/null 2>&1
     while true; do
         clear 2>/dev/null || true
         echo -e "${BLU}=============================================${NC}"
