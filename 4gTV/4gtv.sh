@@ -2,7 +2,7 @@
 #
 #  4GTV 公开版 · 一键安装 / 管理脚本 (含 Alpine OpenRC 支持)
 #  --------------------------------------------------------------------
-#  · 自动识别 CPU 架构 (amd64 / arm64 / armv7)，下载预编译二进制
+#  · 自动识别 CPU 架构 (amd64 / arm64)，下载预编译二进制
 #  · 支持 systemd (Ubuntu/Debian/CentOS) 与 OpenRC (Alpine) 开机自启
 #  · 支持自定义端口（PORT）与隐藏路径前缀（BASE_PATH）
 #
@@ -42,8 +42,7 @@ detect_arch() {
     case "$m" in
         x86_64|amd64)          echo "amd64" ;;
         aarch64|arm64)         echo "arm64" ;;
-        armv7l|armv7|armhf)    echo "armv7" ;;
-        *) err "不支持的架构: $m（支持 amd64 / arm64 / armv7）"; return 1 ;;
+        *) err "不支持的架构: $m（支持 amd64 / arm64）"; return 1 ;;
     esac
 }
 
