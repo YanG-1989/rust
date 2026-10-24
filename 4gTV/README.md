@@ -4,7 +4,7 @@
 
 代理 TS / 转发 M3U8 / 302 重定向 | SOCKS5/HTTP 代理 | EPG · 在线播放器 
 
-![arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20armv7-blue)
+![arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64%20%7C%20-blue)
 ![service](https://img.shields.io/badge/service-systemd-green)
 ![panel](https://img.shields.io/badge/panel-Web%20UI-orange)
 
@@ -23,7 +23,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/4gTV/4gt
 | 监听端口 | **随机**高位端口（约 10000–60000） |
 | 隐藏路径 | **随机**生成（推荐保留） |
 
-自动识别 CPU 架构（amd64 / arm64 / armv7），装到 `/opt/4gtv`，systemd 常驻 + 开机自启。
+自动识别 CPU 架构（amd64 / arm64），装到 `/opt/4gtv`，systemd 常驻 + 开机自启。
 
 > **隐藏路径**：所有接口挂在随机前缀下（例如 `/a1b2c3d4`），不带前缀访问会 404，降低被端口扫描发现的概率。
 
