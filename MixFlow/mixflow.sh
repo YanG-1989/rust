@@ -3,13 +3,14 @@
 #  mixflow · 一键安装 / 管理脚本
 #  --------------------------------------------------------------------
 #  · 自动识别 CPU 架构 (amd64 / arm64)，从 GitHub 下载编译好的二进制
+#  · 下载旁有同名 .sha256 校验文件时强制验 SHA-256，验不过不安装
 #  · 安装到 /opt/mixflow（不塞进 /root），systemd 常驻 + 开机自启
 #  · 内置：改面板端口 / 改隐藏入口路径 / 改面板密码 / 查看面板地址
 #
 
 set -uo pipefail
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 
 # ============================================================
 #  ★ 你的下载地址（已按你的实际布局填好）★
@@ -191,6 +192,40 @@ download_url() {
 MIN_BIN_SIZE="${MIXFLOW_MIN_BIN_SIZE:-1048576}"   # 二进制至少 1MB（正常约 3MB）
 MIN_SCRIPT_SIZE=10000                              # 脚本至少 10KB（正常约 30KB）
 file_size() { wc -c < "$1" 2>/dev/null | tr -d ' '; }
+
+# SHA-256 校验：下载地址旁存在同名 .sha256 文件时必须验过才装、验不过中止；
+# 不存在校验文件（或内容异常 / 本机无校验工具）时警告一行后继续，不把安装改成硬失败。
+# raw 直下与 Release 备选两条路径共用：校验地址恒为「二进制地址 + .sha256」。
+verify_checksum() { # file url
+    local f="$1" sumurl="$2.sha256" sumfile expect actual
+    sumfile="$(mktemp /tmp/mixflow.sum.XXXXXX)" || { warn "无法创建临时文件，跳过 SHA-256 校验"; return 0; }
+    if ! fetch "$sumurl" "$sumfile" 2>/dev/null; then
+        rm -f "$sumfile"
+        warn "未找到校验文件 $sumurl，跳过 SHA-256 校验"
+        return 0
+    fi
+    # 兼容两种内容格式：纯哈希，或 sha256sum 的「哈希  文件名」
+    expect="$(awk 'NR==1{print $1}' "$sumfile" | tr -d ' \r\n' | tr 'A-F' 'a-f')"
+    rm -f "$sumfile"
+    if ! [[ "$expect" =~ ^[0-9a-f]{64}$ ]]; then
+        warn "校验文件内容异常，跳过 SHA-256 校验"
+        return 0
+    fi
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$f" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "$f" | awk '{print $1}')"
+    else
+        warn "系统里没有 sha256sum / shasum，跳过 SHA-256 校验"
+        return 0
+    fi
+    if [ "$actual" != "$expect" ]; then
+        err "SHA-256 校验不通过，已中止安装。期望 $expect，实际 $actual"
+        return 1
+    fi
+    info "SHA-256 校验通过"
+    return 0
+}
 
 # 下回来的得是个 ELF 可执行文件，不是 404 的 HTML 页
 looks_like_elf() {
@@ -445,6 +480,10 @@ download_binary() {
     if ! looks_like_elf "$tmp"; then
         rm -f "$tmp"
         err "下载到的不是 ELF 二进制（多半是 404 页面）。请确认 Release 里有：$(basename "$url")"
+        return 1
+    fi
+    if ! verify_checksum "$tmp" "$url"; then
+        rm -f "$tmp"
         return 1
     fi
     chmod +x "$tmp"
@@ -774,6 +813,8 @@ mixflow 安装 · 管理脚本 v${VERSION}
   MIXFLOW_TAG    Release tag（默认 latest）
   MIXFLOW_ASSET  资产命名（默认 mixflow-linux-{arch}）
   MIXFLOW_URL    直接给完整下载地址（含 {arch} 占位符也可），设了就忽略上面三个
+
+校验：下载地址旁有同名 .sha256 文件时强制验 SHA-256，验不过中止；没有则警告后继续
 EOF
 }
 

@@ -10,7 +10,7 @@
 
 **多协议代理 + Web 管理面板 · 一键部署**
 
-Trojan · Hysteria2 · SOCKS5 / HTTP　|　直连 / 远程代理 / WARP 出站　|　分流规则　|　内核终极优化
+Trojan · Hysteria2 · Mieru · SOCKS5 / HTTP　|　直连 / 远程代理 / WARP 出站　|　分流规则　|　内核终极优化
 
 ![arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64-blue)
 ![systemd](https://img.shields.io/badge/service-systemd-green)
@@ -34,10 +34,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 - 在面板里手动添加节点，逐项填写协议、端口、密码等参数；
 - 或者直接编辑 `config.toml`（示例见 `config.example.toml`），支持：
-  - `[[nodes]]`：Mixed（SOCKS5+HTTP）/ Trojan / Hysteria2 节点，监听地址、端口、出站方式（`direct` / `warp`）等全部手写；
+  - `[[nodes]]`：Mixed（SOCKS5+HTTP）/ Trojan / Hysteria2 / Mieru 节点，监听地址、端口、出站方式（`direct` / `warp`）等全部手写；
   - Hysteria2 专属参数：`hy2_udp`、`hy2_up_mbps` / `hy2_down_mbps`（带宽 & Brutal）、`hy2_obfs_password`（Salamander 混淆）、`hy2_masq_type`（伪装）、`hy2_hop_ports`（端口跳跃，留空默认开，`off` 关闭）；
+  - Mieru 专属参数：`mieru_username` / `mieru_password`（认证凭据，可留空自动生成）、`mieru_transport`（承载：`both` 默认同端口 TCP+UDP 双开，`tcp` / `udp` 可单开）；
+  - Trojan 节点级参数：`block_quic`（拦截 QUIC 逼其回落 TCP，默认开启）；
   - `[[nodes.rules]]`：按域名 / IP 匹配的分流规则，从上到下命中即停，落地可选 `direct` / `warp` / 自定义 `proxy`；
   - `[warp]`：WARP 账号文件路径；
+  - `[he6]`：HE6 隧道（Hurricane Electric 6in4），为 WARP 外层提供 IPv6 线路；
   - `[panel]`：面板开关、监听地址、端口、账号密码、隐藏入口 `entry`；Cloudflare API 令牌与默认根域名；面板绑定域名 / 证书（Origin CA 或 Let's Encrypt DNS-01）与 HTTPS；
   - `[log]`：日志级别、落盘路径与滚动大小上限（默认约 1MB）。
 
@@ -83,7 +86,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 ## ✨ 功能特性
 
-- **多协议**：Trojan（TLS / WS）、Hysteria2（QUIC）、Mixed（SOCKS5 + HTTP）。
+- **多协议**：Trojan（TLS / WS）、Hysteria2（QUIC）、Mieru、Mixed（SOCKS5 + HTTP）。
+- **Mieru 协议**：纯 Rust 实现，用户名 + 密码认证，TCP / UDP 双承载（默认同端口双开）；无 TLS 特征、随机填充，订阅全格式带 Mieru 节点。
+- **HE6 隧道**：Hurricane Electric 6in4 隧道接入，可为 WARP 外层提供 IPv6 线路。
+- **Trojan 节点级 block_quic**：按节点拦截 QUIC（UDP 443），逼客户端回落 TCP，默认开启。
 - **多种出站**：直连、远程 SOCKS5/HTTP、WARP；每条分流规则可单独指定出站。
 - **分流可视化**：流程图与地图；分流库可复用常用规则集。
 - **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口只监听一个，区间 REDIRECT；宽约 500~1000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
@@ -92,11 +98,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
   - **LE 可与小黄云同时开启**：走的是 DNS-01（写 `_acme-challenge` TXT），不依赖 HTTP-01，A 记录是否橙云不影响签发。
   - **LE 自动续期**：进程内每 6 小时检查，距到期 ≤30 天则再签；条件：`cert_mode=letsencrypt` 且已启用 HTTPS、有域名与 CF Token。**解绑 DNS**（会关 HTTPS）或改为 Origin CA / 关 HTTPS 即停止续期。
   - Origin CA 按 Zone 签 `*.根域`，面板域名与节点 CDN **同主域共用**；申请成功后开启面板 HTTPS（证书热加载），并自动勾选「仅 HTTPS / 仅允许本域名」。
-- **订阅与导出**：按 UA 自动适配 Clash / sing-box / Base64；自签附 `pcs` / `pinSHA256`；WS 套 CF 时订阅不强制 skip-cert-verify；一次性导出与订阅链接支持**二维码**。
+- **订阅与导出**：按 UA 自动适配 Clash / sing-box / Base64 / QuanX / Loon / Surge 六种格式；Trojan 自签附 `pcs`；WS 套 CF 时订阅不强制 skip-cert-verify；一次性导出与订阅链接支持**二维码**。
 - **可观测**：概览页（版本 / 负载 / 流量 / 运行状态）；排障环形记录（中文摘要）；文件日志大小上限。
 - **Web 面板**：节点增删改、回落地址探测、忘记密码可用命令行重置。
 - **WARP**：创建节点自动注册并按 family 拉起隧道，节点删光后自动拆除。
-- **内核优化**：一键 BBR + 缓冲区调优并持久化；TCP Fast Open 内核检测与自动启用。
+- **内核优化**：一键 BBR + 缓冲区调优并持久化；TCP Fast Open 内核检测与自动启用；面板内置「系统内核优化」（sysctl 生成器），可在设置页一键应用。
 - **一键部署**：amd64 / arm64，systemd 常驻，全局 `mixflow` 命令。
 
 ---
@@ -105,23 +111,18 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 | 版本 | 说明 |
 | ---- | ---- |
-| 0.3.36–0.3.39 | **面板域名与证书**：绑定 DNS / 解绑；Origin CA（Zone 通配约 15 年）与 Let's Encrypt（DNS-01，可开小黄云）；面板 HTTPS 热加载；Host 校验；CF 一键回源写入 Origin CA |
-| 0.3.27–0.3.35 | **Cloudflare / 订阅**：CF部署（DNS 橙云 + Origin 回源）；删节点清理 CF；WS+CF 显式 insecure=0 / skip-cert-verify: false；导出与订阅二维码；令牌文案 |
-| 0.3.25–0.3.26 | **排障与日志**：排障环形记录（中文）；日志上限；概览分页与文案精简；回落地址探测 |
-| 0.3.22–0.3.24 | **Hy2 端口跳跃**：nft/iptables REDIRECT；默认开启；无权限自动跳过；订阅 `mport`/`ports` |
-| 0.3.17–0.3.21 | **概览与界面**：概览页签；页签精简；SVG 图标；失败徽章可点 |
-| 0.3.11–0.3.16 | **节点与订阅**：Hy2 Brutal；TLS/CDN 联动；订阅导出/链接拆分；WS/CDN 软检查 |
-| 0.3.1–0.3.10 | **TFO 与基础**：TFO 全链路；版本统一 0.3.x；自签指纹；UA 自适应订阅 |
-| 0.3.0 | Trojan WS 对外端口/优选域名；分流库 UI；地图香港投影 |
+| 0.3.40–0.3.72 | **Mieru 协议 · HE6 隧道 · 订阅多格式（QuanX / Loon / Surge）· Trojan block_quic · 面板系统内核优化**；性能与稳定性优化 |
+| 0.3.22–0.3.39 | **面板域名与证书**（Origin CA / Let's Encrypt DNS-01）；CF部署与删节点清理；Hy2 端口跳跃；排障环形记录与日志上限 |
+| 0.3.0–0.3.21 | Hy2 Brutal；TFO 全链路；概览页签与界面整理；分流库 UI；UA 自适应订阅 |
 | 0.2.x | GeoIP 多源多数决；WARP 随节点自动注册/拆除 |
 | 0.1.x | 初版：Trojan / Hy2 / Mixed；分流；WARP；Web 面板 |
 
-> 当前 **`0.3.39`**，与 `Cargo.toml` / `VERSION` 对齐。
+> 当前 **`0.3.72`**，与 `Cargo.toml` / `VERSION` 对齐。
 
 ---
 
 <div align="center">
-<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>（含端口跳跃区间）。套 Cloudflare 时外网走 CF 端口（如 443 / 2053），本机监听端口由 Origin Rule 回源。</sub>
+<sub>放行提醒：节点端口需在防火墙 / 云安全组开放 —— Trojan 走 <b>TCP</b>，Hysteria2 走 <b>UDP</b>（含端口跳跃区间），Mieru 按承载走 <b>TCP / UDP</b>。套 Cloudflare 时外网走 CF 端口（如 443 / 2053），本机监听端口由 Origin Rule 回源。</sub>
 </div>
 
 ---
@@ -132,7 +133,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 
 **Multi-Protocol Proxy + Web Admin Panel · One-Click Deployment**
 
-Trojan · Hysteria2 · SOCKS5 / HTTP　|　Direct / Remote Proxy / WARP Outbound　|　Routing Rules　|　Ultimate Kernel Optimization
+Trojan · Hysteria2 · Mieru · SOCKS5 / HTTP　|　Direct / Remote Proxy / WARP Outbound　|　Routing Rules　|　Ultimate Kernel Optimization
 
 ![arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64-blue)
 ![systemd](https://img.shields.io/badge/service-systemd-green)
@@ -156,10 +157,13 @@ Opens the interactive management menu where you set the panel port / hidden entr
 
 - Manually add nodes in the panel, filling in protocol, port, password and other parameters;
 - Or edit `config.toml` directly (see `config.example.toml` for reference), supporting:
-  - `[[nodes]]`: Mixed (SOCKS5+HTTP) / Trojan / Hysteria2 nodes with full manual control over listen address, port, outbound method (`direct` / `warp`), etc.;
+  - `[[nodes]]`: Mixed (SOCKS5+HTTP) / Trojan / Hysteria2 / Mieru nodes with full manual control over listen address, port, outbound method (`direct` / `warp`), etc.;
   - Hysteria2-specific parameters: `hy2_udp`, `hy2_up_mbps` / `hy2_down_mbps` (bandwidth & Brutal), `hy2_obfs_password` (Salamander obfuscation), `hy2_masq_type` (masquerade), `hy2_hop_ports` (port hopping, enabled by default when empty, `off` to disable);
+  - Mieru-specific parameters: `mieru_username` / `mieru_password` (credentials, leave empty to auto-generate), `mieru_transport` (transport: `both` = TCP+UDP on the same port by default, `tcp` / `udp` for a single transport);
+  - Trojan per-node parameter: `block_quic` (blocks QUIC to force TCP fallback, enabled by default);
   - `[[nodes.rules]]`: routing rules matched by domain / IP, evaluated top-down with first match winning; each rule can use `direct` / `warp` / custom `proxy` as outbound;
   - `[warp]`: WARP account file path;
+  - `[he6]`: HE6 tunnel (Hurricane Electric 6in4), providing an IPv6 underlay for WARP;
   - `[panel]`: panel toggle, listen address, port, credentials, hidden entry `entry`; Cloudflare API token and default root domain; panel domain binding / certificates (Origin CA or Let's Encrypt DNS-01) and HTTPS;
   - `[log]`: log level, file path and rotation size limit (default ~1MB).
 
@@ -205,7 +209,10 @@ Tabs: **Overview** / **Node** / **Routing** / **Subscription** / **Settings**.
 
 ## ✨ Features
 
-- **Multi-protocol**: Trojan (TLS / WS), Hysteria2 (QUIC), Mixed (SOCKS5 + HTTP).
+- **Multi-protocol**: Trojan (TLS / WS), Hysteria2 (QUIC), Mieru, Mixed (SOCKS5 + HTTP).
+- **Mieru protocol**: pure Rust implementation, username + password auth, TCP / UDP dual transport (both on the same port by default); no TLS fingerprint, random padding, Mieru nodes included in every subscription format.
+- **HE6 tunnel**: Hurricane Electric 6in4 tunnel support, providing an IPv6 underlay for WARP.
+- **Per-node Trojan block_quic**: blocks QUIC (UDP 443) per node to force clients back to TCP, enabled by default.
 - **Multiple outbounds**: Direct, remote SOCKS5/HTTP, WARP; each routing rule can specify its own outbound.
 - **Routing visualization**: flow charts and maps; reusable rule sets in the routing library.
 - **Hysteria2 anti-blocking**: Salamander obfuscation, masquerade sites; **port hopping** enabled by default (only one main port listens, range via REDIRECT; range ~500-1000; auto-skips without privileges, similar to TFO; subscriptions include `mport` / `ports` as needed).
@@ -214,11 +221,11 @@ Tabs: **Overview** / **Node** / **Routing** / **Subscription** / **Settings**.
   - **LE works with orange cloud enabled**: uses DNS-01 (writes `_acme-challenge` TXT), no dependency on HTTP-01; whether the A record is orange-clouded doesn't affect issuance.
   - **LE auto-renewal**: checks every 6 hours in-process, renews when ≤30 days to expiry; requires `cert_mode=letsencrypt` with HTTPS enabled, domain and CF Token present. **Unbinding DNS** (disables HTTPS) or switching to Origin CA / disabling HTTPS stops renewal.
   - Origin CA signs `*.root-domain` per Zone, shared between panel domain and node CDN **under the same primary domain**; after successful issuance, panel HTTPS is enabled (hot certificate reload) with "HTTPS only / allow this domain only" auto-checked.
-- **Subscription & export**: auto-adapts to Clash / sing-box / Base64 by UA; self-signed certs include `pcs` / `pinSHA256`; subscriptions don't force skip-cert-verify when WS is behind CF; one-time export and subscription links support **QR codes**.
+- **Subscription & export**: auto-adapts to six formats by UA — Clash / sing-box / Base64 / QuanX / Loon / Surge; self-signed Trojan certs include `pcs`; subscriptions don't force skip-cert-verify when WS is behind CF; one-time export and subscription links support **QR codes**.
 - **Observability**: overview page (version / load / traffic / running status); circular diagnostic records (Chinese summaries); file log size limits.
 - **Web panel**: node CRUD, fallback address probing, password reset via CLI if forgotten.
 - **WARP**: auto-registers and brings up tunnels by family when nodes are created, auto-tears down when all nodes are deleted.
-- **Kernel optimization**: one-click BBR + buffer tuning with persistence; TCP Fast Open kernel detection and auto-enable.
+- **Kernel optimization**: one-click BBR + buffer tuning with persistence; TCP Fast Open kernel detection and auto-enable; built-in panel "System Kernel Optimization" (sysctl generator) applicable from the settings page.
 - **One-click deployment**: amd64 / arm64, systemd resident, global `mixflow` command.
 
 ---
@@ -227,21 +234,16 @@ Tabs: **Overview** / **Node** / **Routing** / **Subscription** / **Settings**.
 
 | Version | Description |
 | ---- | ---- |
-| 0.3.36–0.3.39 | **Panel domain & certificates**: DNS bind / unbind; Origin CA (Zone wildcard ~15 years) and Let's Encrypt (DNS-01, orange-cloud compatible); panel HTTPS hot reload; Host validation; CF one-click origin-pull with Origin CA |
-| 0.3.27–0.3.35 | **Cloudflare / subscription**: CF deploy (DNS orange cloud + Origin rules); CF cleanup on node deletion; explicit insecure=0 / skip-cert-verify: false for WS+CF; export & subscription QR codes; token wording |
-| 0.3.25–0.3.26 | **Diagnostics & logging**: circular diagnostic records (Chinese); log size limits; overview pagination and copy polish; fallback address probing |
-| 0.3.22–0.3.24 | **Hy2 port hopping**: nft/iptables REDIRECT; enabled by default; auto-skip without privileges; subscription `mport`/`ports` |
-| 0.3.17–0.3.21 | **Overview & UI**: overview tab; tab simplification; SVG icons; clickable failure badges |
-| 0.3.11–0.3.16 | **Nodes & subscription**: Hy2 Brutal; TLS/CDN linkage; subscription export/link split; WS/CDN soft checks |
-| 0.3.1–0.3.10 | **TFO & basics**: full TFO chain; unified 0.3.x versioning; self-signed fingerprints; UA-adaptive subscriptions |
-| 0.3.0 | Trojan WS external port/preferred domain; routing library UI; Hong Kong map projection |
+| 0.3.40–0.3.72 | **Mieru protocol · HE6 tunnel · multi-format subscriptions (QuanX / Loon / Surge) · Trojan block_quic · panel system kernel optimization**; performance and stability improvements |
+| 0.3.22–0.3.39 | **Panel domain & certificates** (Origin CA / Let's Encrypt DNS-01); CF deploy & cleanup on node deletion; Hy2 port hopping; circular diagnostic records and log size limits |
+| 0.3.0–0.3.21 | Hy2 Brutal; full TFO chain; overview tab and UI polish; routing library UI; UA-adaptive subscriptions |
 | 0.2.x | GeoIP multi-source majority vote; WARP auto-register/teardown with nodes |
 | 0.1.x | Initial: Trojan / Hy2 / Mixed; routing; WARP; Web panel |
 
-> Current **`0.3.39`**, aligned with `Cargo.toml` / `VERSION`.
+> Current **`0.3.72`**, aligned with `Cargo.toml` / `VERSION`.
 
 ---
 
 <div align="center">
-<sub>Firewall reminder: node ports must be opened in firewall / cloud security groups — Trojan uses <b>TCP</b>, Hysteria2 uses <b>UDP</b> (including the port hopping range). Behind Cloudflare, the public uses CF ports (e.g. 443 / 2053), with local listen ports pulled via Origin Rules.</sub>
+<sub>Firewall reminder: node ports must be opened in firewall / cloud security groups — Trojan uses <b>TCP</b>, Hysteria2 uses <b>UDP</b> (including the port hopping range), Mieru uses <b>TCP / UDP</b> depending on transport. Behind Cloudflare, the public uses CF ports (e.g. 443 / 2053), with local listen ports pulled via Origin Rules.</sub>
 </div>
