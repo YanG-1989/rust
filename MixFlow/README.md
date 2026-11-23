@@ -92,7 +92,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 - **Trojan 节点级 block_quic**：按节点拦截 QUIC（UDP 443），逼客户端回落 TCP，默认开启。
 - **多种出站**：直连、远程 SOCKS5/HTTP、WARP；每条分流规则可单独指定出站。
 - **分流可视化**：流程图与地图；分流库可复用常用规则集。
-- **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认开启（主端口只监听一个，区间 REDIRECT；宽约 500~1000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
+- **Hysteria2 抗封锁**：Salamander 混淆、伪装站点；**端口跳跃**默认关闭（主端口只监听一个，区间 REDIRECT；宽约 500~1000；无权限自动跳过，类似 TFO；订阅按需带 `mport` / `ports`）。
 - **Cloudflare 部署**：设置中保存 API 令牌（需**读取和写入**；面板 Origin CA 另需 **SSL and Certificates → Edit**）；Trojan WebSocket 可「CF部署」——自动写 DNS 小黄云 + Origin 回源 + **Origin CA 证书**（同 Zone 通配复用）；删节点时同步清理 DNS / Origin Rule。
 - **面板域名与证书**：设置页绑定域名、DNS 小黄云、对外固定 443 回源；证书可选 **Cloudflare Origin CA（约 15 年，仅橙云）** 或 **Let's Encrypt（内置 DNS-01，公有信任）**。
   - **LE 可与小黄云同时开启**：走的是 DNS-01（写 `_acme-challenge` TXT），不依赖 HTTP-01，A 记录是否橙云不影响签发。
