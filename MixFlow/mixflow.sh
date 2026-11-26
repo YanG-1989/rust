@@ -10,7 +10,7 @@
 
 set -uo pipefail
 
-VERSION="1.1.1"
+VERSION="1.1.2"
 
 # ============================================================
 #  ★ 你的下载地址（已按你的实际布局填好）★
@@ -276,7 +276,7 @@ detect_region() {
 # ============================================================
 #  一键生成节点 + 终极优化
 # ============================================================
-# 只干三件事：建 Mixed / Trojan / Hysteria2 三个节点（都随机端口）、套用终极代理优化。
+# 只干三件事：建 Mixed / Trojan / Hysteria2 / Mieru 四个节点（都随机端口）、套用终极代理优化。
 cmd_oneclick() {
     need_root "$@"
 
@@ -332,7 +332,7 @@ cmd_oneclick() {
     rm -f "$olog"
 
     # ② ③ 建节点
-    printf "  [2/3] 创建 Mixed + Trojan + Hysteria2 节点 ... "
+    printf "  [2/3] 创建 Mixed + Trojan + Hysteria2 + Mieru 节点 ... "
     local qlog; qlog="$(mktemp /tmp/mixflow.node.XXXXXX)"
     if ! "$BIN" quicknode --tag "$region" --host "$ip" -c "$CONFIG" >"$qlog" 2>&1; then
         echo -e "${RED}失败${NC}"; cat "$qlog"; rm -f "$qlog"; return 1
@@ -796,7 +796,7 @@ mixflow 安装 · 管理脚本 v${VERSION}
 
 子命令：
   install / update     安装或更新（下载二进制 + 起服务）
-  oneclick             ★ 一键：建 Mixed / Trojan / Hysteria2 三个节点（随机端口）并做终极优化
+  oneclick             ★ 一键：建 Mixed / Trojan / Hysteria2 / Mieru 四个节点（随机端口）并做终极优化
   start|stop|restart|status|log
   url                  打印面板访问地址
   port <N>             改面板端口

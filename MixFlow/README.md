@@ -76,7 +76,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/YanG-1989/rust/main/MixFlow/
 | :-- | :-- |
 | `mixflow.sh` | 打开管理菜单 |
 | `mixflow.sh oneclick` | 一键建节点 + 终极优化 |
-| `mixflow quicknode --tag HK` | 建 Trojan + Hysteria2（随机端口） |
+| `mixflow quicknode --tag HK` | 建 Mixed + Trojan + Hysteria2 + Mieru 四个节点（随机端口） |
 | `mixflow optimize` | 终极代理模式内核优化 |
 | `mixflow panel --port <N>` | 改面板端口 |
 | `mixflow panel --path /xxx` | 设隐藏入口（`--path off` 关闭） |
@@ -199,7 +199,7 @@ Tabs: **Overview** / **Node** / **Routing** / **Subscription** / **Settings**.
 | :-- | :-- |
 | `mixflow.sh` | Open management menu |
 | `mixflow.sh oneclick` | One-click node creation + ultimate optimization |
-| `mixflow quicknode --tag HK` | Create Trojan + Hysteria2 (random ports) |
+| `mixflow quicknode --tag HK` | Create Mixed + Trojan + Hysteria2 + Mieru (random ports) |
 | `mixflow optimize` | Ultimate kernel optimization for proxy mode |
 | `mixflow panel --port <N>` | Change panel port |
 | `mixflow panel --path /xxx` | Set hidden entry (`--path off` to disable) |
